@@ -427,7 +427,8 @@ export function buildWeatheredRock(
 			const b = a + lonSeg + 1;
 			const c = a + 1;
 			const d = b + 1;
-			indices.push( a, b, c, b, d, c );
+			// Outward-facing CCW winding: cross(lon +Z, lat -Y) = +X outward
+			indices.push( a, c, b, c, d, b );
 
 		}
 

@@ -26,6 +26,16 @@ import {
   synthesizeBarkSurface,
   synthesizeSoilSurface,
   synthesizeLeafSprigAtlas,
+  synthesizeCarvedLimestoneSurface,
+  synthesizeFlagstoneSlateSurface,
+  synthesizeScholarRockSurface,
+  synthesizeWaterNormalMap,
+  planBotanicalGardenLayout,
+  verifyGardenNonInterference,
+  buildFlagstoneSlabGeometry,
+  buildStoneFountainGeometry,
+  buildFountainWaterStreamsGeometry,
+  buildScholarRockMesh,
 } from '../runtime/core/index.ts';
 
 function assertOutwardWinding(name, mesh) {
@@ -129,6 +139,7 @@ function assertOutwardWinding(name, mesh) {
   let minY = Infinity;
   for (let i = 1; i < rock.positions.length; i += 3) minY = Math.min(minY, rock.positions[i]);
   assert.ok(minY < -0.5, 'Weathered rock must bury its base below y=0');
+  assertOutwardWinding('buildWeatheredRock', rock);
 }
 
 // 5. Botanical Skeleton/Mesh Decoupling + 4-Dir Coverage Solver
@@ -252,6 +263,41 @@ function assertOutwardWinding(name, mesh) {
   }
   const soil = synthesizeSoilSurface(64, 77);
   assert.equal(soil.albedoSRGB.length, 64 * 64 * 4);
+}
+
+// 9. Photorealistic Lake Garden Layout, Non-Interference Solver & Stone/Water PBR (`gardenLayout.ts`)
+{
+  const plan = planBotanicalGardenLayout(2026);
+  assert.ok(plan.flagstones.length >= 16, `Expected continuous flagstone path, got ${plan.flagstones.length}`);
+  assert.ok(plan.rockeryStones.length >= 7, 'Expected multi-tier scholar rockery');
+  assert.ok(plan.trees.length >= 4, 'Expected framing woodland trees');
+  assert.ok(plan.flowers.length >= 25, 'Expected multi-bed garden flowers');
+  assert.ok(plan.grassClumps.length >= 800, 'Expected dense collision-free turf');
+  assert.ok(plan.lilyPads.length >= 10, 'Expected lake lily pads');
+
+  const violations = verifyGardenNonInterference(plan);
+  assert.deepEqual(violations, [], `Garden non-interference audit failed: ${violations.join('; ')}`);
+
+  assertOutwardWinding('flagstoneSlab', buildFlagstoneSlabGeometry(0.32, 0.068, 500));
+  const fnt = buildStoneFountainGeometry(40);
+  assertOutwardWinding('stoneFountain', fnt.stone);
+  const streams = buildFountainWaterStreamsGeometry(fnt.lowerPoolWaterY, fnt.upperPoolWaterY, fnt.nozzleTipY);
+  assert.ok(streams.positions.length > 0 && streams.indices.length > 0);
+  for (const st of plan.rockeryStones) {
+    assertOutwardWinding(`scholarRock_${st.id}`, buildScholarRockMesh(st));
+  }
+
+  for (const surf of [
+    synthesizeCarvedLimestoneSurface(64, 61),
+    synthesizeFlagstoneSlateSurface(64, 83),
+    synthesizeScholarRockSurface(64, 109),
+  ]) {
+    assert.equal(surf.albedoSRGB.length, 64 * 64 * 4);
+    assert.equal(surf.normalLinear.length, 64 * 64 * 4);
+    assert.equal(surf.ormLinear.length, 64 * 64 * 4);
+  }
+  const wNorm = synthesizeWaterNormalMap(64, 149);
+  assert.equal(wNorm.length, 64 * 64 * 4);
 }
 
 console.log('ALL runtime/core TypeScript tests passed!');

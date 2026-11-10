@@ -2,27 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ThreeJSWorld — Photorealistic Trees, Flowers & Grass Visual Inspector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ThreeJSWorld — Photorealistic Botanical Lake Garden &amp; Asset Suite</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0e1318; color: #e6edf3; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
     #hud {
-      position: fixed; top: 12px; left: 12px; z-index: 20; width: 310px;
-      background: rgba(13, 18, 24, 0.86); border: 1px solid #2a3746; border-radius: 10px;
-      padding: 12px 14px; backdrop-filter: blur(8px); font-size: 12px;
+      position: fixed; top: 12px; right: 12px; z-index: 20;
+      width: 256px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      background: rgba(13, 18, 24, 0.84); border: 1px solid #2b3949; border-radius: 10px;
+      padding: 10px 12px; backdrop-filter: blur(10px); font-size: 11.5px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
     }
-    body.clean #hud { display: none; }
-    h1 { font-size: 13.5px; font-weight: 700; color: #7ee787; margin-bottom: 4px; }
-    .sub { color: #8ea1b4; font-size: 11px; margin-bottom: 10px; line-height: 1.35; }
-    .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 8px; }
+    body.clean #hud, body.clean #hudRestore { display: none; }
+    #hud.collapsed { display: none; }
+    #hudRestore {
+      position: fixed; top: 12px; right: 12px; z-index: 21; display: none;
+      background: rgba(13, 18, 24, 0.86); color: #7ee787; border: 1px solid #2b3949;
+      border-radius: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    }
+    #hudRestore.visible { display: block; }
+    .hdr { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+    h1 { font-size: 13px; font-weight: 700; color: #7ee787; }
+    .sub { color: #90a4b8; font-size: 10.5px; margin-bottom: 8px; line-height: 1.35; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin: 5px 0; gap: 6px; }
     select, button {
       background: #1a232e; color: #e6edf3; border: 1px solid #334355; border-radius: 6px;
-      padding: 4px 8px; font-size: 11.5px; cursor: pointer;
+      padding: 4px 7px; font-size: 11px; cursor: pointer;
     }
+    select { max-width: 152px; }
     button:hover { background: #263344; }
-    .cam-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 6px; }
-    .section { border-top: 1px solid #24303e; margin-top: 8px; padding-top: 8px; }
-    #stats { font-family: ui-monospace, monospace; font-size: 10.5px; color: #9cb0c4; margin-top: 8px; line-height: 1.4; }
+    .cam-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 5px; }
+    .cam-grid button.wide { grid-column: span 2; }
+    .section { border-top: 1px solid #24303e; margin-top: 7px; padding-top: 7px; }
+    #stats { font-family: ui-monospace, monospace; font-size: 10px; color: #9cb0c4; margin-top: 7px; line-height: 1.4; }
   </style>
   <script type="importmap">
     {
@@ -34,14 +48,19 @@
   </script>
 </head>
 <body>
+  <button id="hudRestore" type="button">Show Controls</button>
+
   <div id="hud">
-    <h1>ThreeJSWorld Botanical Suite</h1>
-    <div class="sub">Procedural Trees, Flowers &amp; Grass — Surface::shaped PBR, upNormalCards &amp; coverage mipmaps</div>
+    <div class="hdr">
+      <h1>ThreeJSWorld Garden</h1>
+      <button id="hudHide" type="button">Hide</button>
+    </div>
+    <div class="sub">Photorealistic Lake, Fountain, Flagstone Path, PBR Rockery, Trees, Flowers &amp; Turf (Zero Overlap)</div>
 
     <div class="row">
       <label for="viewMode">Asset Mode</label>
       <select id="viewMode">
-        <option value="all">Garden (All Flora)</option>
+        <option value="all">Garden (Full Scene)</option>
         <option value="tree">Tree Isolation</option>
         <option value="flower">Flower Macro</option>
         <option value="grass">Grass Turf Macro</option>
@@ -49,7 +68,7 @@
     </div>
 
     <div class="row">
-      <label for="speciesSelect">Species Preset</label>
+      <label for="speciesSelect">Species / Seed</label>
       <select id="speciesSelect">
         <option value="oak">Oak / Daisy / Fescue</option>
         <option value="pine">Pine / Rose / Foxtail</option>
@@ -59,22 +78,23 @@
 
     <div class="section">
       <div class="row"><label><input type="checkbox" id="chkLeaves" checked /> Leaves (--without leaves)</label></div>
-      <div class="row"><label><input type="checkbox" id="chkNormal" checked /> Surface Normal Maps</label></div>
-      <div class="row"><label><input type="checkbox" id="chkWind" checked /> Wind Gust Shader</label></div>
+      <div class="row"><label><input type="checkbox" id="chkNormal" checked /> Surface::shaped Normals</label></div>
+      <div class="row"><label><input type="checkbox" id="chkWind" checked /> Wind &amp; Water Motion</label></div>
       <div class="row"><label><input type="checkbox" id="chkWire" /> Wireframe Topology</label></div>
     </div>
 
     <div class="section">
-      <div style="font-weight:600;margin-bottom:4px;">Camera Angles (6-Pass Inspection)</div>
+      <div style="font-weight:600;margin-bottom:4px;">Camera Angles</div>
       <div class="cam-grid">
-        <button data-cam="hero">Hero 3/4</button>
-        <button data-cam="closeup">Close-Up Macro</button>
+        <button data-cam="hero">Garden Hero</button>
+        <button data-cam="closeup">Fountain &amp; Lake</button>
+        <button data-cam="rockery">Rockery &amp; Path</button>
         <button data-cam="back">Opposite Rear</button>
-        <button data-cam="top">Top Elevation</button>
+        <button data-cam="top" class="wide">Top-Down Layout Audit</button>
       </div>
     </div>
 
-    <div id="stats">Loading procedural flora…</div>
+    <div id="stats">Loading photorealistic garden…</div>
   </div>
 
   <script type="module">
@@ -82,6 +102,7 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import {
       buildProceduralSkyDomeAndPMREM,
+      buildBotanicalGardenGroup,
       buildTreeMeshGroup,
       buildFlowerMeshGroup,
       buildGrassFieldGroup,
@@ -97,40 +118,52 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.08;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.body.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2('#9bb6cf', 0.011);
+    scene.fog = new THREE.FogExp2('#a7c1d8', 0.0085);
 
     const { skyDome, envMap } = buildProceduralSkyDomeAndPMREM(renderer);
     scene.add(skyDome);
     scene.environment = envMap;
-    scene.environmentIntensity = 0.65;
+    scene.environmentIntensity = 0.72;
 
     const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.03, 220);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
 
-    const hemi = new THREE.HemisphereLight('#d6ebff', '#3a492b', 0.72);
+    const hemi = new THREE.HemisphereLight('#ddecff', '#3b4d2b', 0.76);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight('#fff2da', 2.7);
-    sun.position.set(11, 13, 9);
+    const sun = new THREE.DirectionalLight('#ffedd0', 3.05);
+    sun.position.set(13, 10.5, 8.5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 45;
-    sun.shadow.camera.left = -10;
-    sun.shadow.camera.right = 10;
-    sun.shadow.camera.top = 12;
-    sun.shadow.camera.bottom = -4;
-    sun.shadow.bias = -0.0005;
-    sun.shadow.normalBias = 0.025;
+    sun.shadow.camera.far = 48;
+    sun.shadow.camera.left = -12;
+    sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 14;
+    sun.shadow.camera.bottom = -10;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.022;
     scene.add(sun);
 
     const windUniforms = { uTime: { value: 0 }, uWindStrength: { value: 1.0 } };
+
+    const hudEl = document.getElementById('hud');
+    const hudHideBtn = document.getElementById('hudHide');
+    const hudRestoreBtn = document.getElementById('hudRestore');
+    hudHideBtn.addEventListener('click', () => {
+      hudEl.classList.add('collapsed');
+      hudRestoreBtn.classList.add('visible');
+    });
+    hudRestoreBtn.addEventListener('click', () => {
+      hudEl.classList.remove('collapsed');
+      hudRestoreBtn.classList.remove('visible');
+    });
 
     const viewSel = document.getElementById('viewMode');
     const spSel = document.getElementById('speciesSelect');
@@ -147,6 +180,8 @@
     if (params.get('wire') === '1') chkWire.checked = true;
 
     let activeGroup = new THREE.Group();
+    let activeAnimatedMaps = [];
+    let activeStreamUniforms = null;
     scene.add(activeGroup);
 
     const TREE_MAP = { oak: 'oak', pine: 'pine', birch: 'birch' };
@@ -200,19 +235,27 @@
           controls.target.set(0, midY, 0);
         }
       } else {
-        // Garden Showcase (All Flora)
+        // Full Photorealistic Botanical Lake Garden
         if (camKey === 'closeup') {
-          camera.position.set(1.35, 0.72, 3.35);
-          controls.target.set(0.4, 0.34, 1.8);
+          // Fountain, water arcs, lily pads & lake shoreline macro
+          camera.position.set(0.25, 1.85, 4.15);
+          controls.target.set(2.20, 0.55, -0.30);
+        } else if (camKey === 'rockery') {
+          // PBR Scholar's Rockery (假山) & winding flagstone path + flowers
+          camera.position.set(-1.35, 1.65, 3.05);
+          controls.target.set(-3.65, 0.72, -1.25);
         } else if (camKey === 'back') {
-          camera.position.set(-6.5, 3.8, -7.8);
-          controls.target.set(0, 2.4, 0);
+          // Open north-east garden corridor looking back across Fountain, Lake, Flagstone Path & PBR Rockery
+          camera.position.set(2.45, 2.20, -4.15);
+          controls.target.set(-1.35, 0.75, 0.35);
         } else if (camKey === 'top') {
-          camera.position.set(0.5, 13.5, 3.2);
-          controls.target.set(0, 2.0, 0);
+          // High bird's-eye view proving zero interference between lake, path, rockery, fountain & trees
+          camera.position.set(0.1, 15.8, 1.6);
+          controls.target.set(0.1, 0.0, -0.4);
         } else {
-          camera.position.set(5.4, 2.6, 8.2);
-          controls.target.set(0.2, 2.1, 0.4);
+          // Garden Hero 3/4 panorama: shifts key garden focal zone clear of top-right HUD panel!
+          camera.position.set(-1.35, 4.55, 11.45);
+          controls.target.set(0.65, 0.85, -0.95);
         }
       }
       controls.update();
@@ -221,6 +264,8 @@
     function rebuildScene() {
       scene.remove(activeGroup);
       activeGroup = new THREE.Group();
+      activeAnimatedMaps = [];
+      activeStreamUniforms = null;
 
       const mode = viewSel.value;
       const key = spSel.value;
@@ -229,13 +274,12 @@
       const wireframe = chkWire.checked;
       windUniforms.uWindStrength.value = chkWind.checked ? 1.0 : 0.0;
 
-      const { ground, rock } = buildTerrainAndBoulder(useNormal, wireframe);
-      activeGroup.add(ground);
-
       if (mode === 'tree') {
+        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
         const tree = buildTreeMeshGroup(TREE_MAP[key], 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe });
-        activeGroup.add(tree);
+        activeGroup.add(ground, tree);
       } else if (mode === 'flower') {
+        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
         const flMain = buildFlowerMeshGroup(FLOWER_MAP[key], 21, windUniforms, { heightMeters: 0.48, useNormalMap: useNormal, wireframe });
         const flSide1 = buildFlowerMeshGroup(FLOWER_MAP[key], 29, windUniforms, { heightMeters: 0.39, useNormalMap: useNormal, wireframe });
         flSide1.position.set(-0.14, 0, 0.08);
@@ -244,42 +288,21 @@
         flSide2.position.set(0.15, 0, -0.06);
         flSide2.rotation.y = -0.8;
         const baseGrass = buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 16, radius: 0.45, seed: 88, wireframe });
-        activeGroup.add(flMain, flSide1, flSide2, baseGrass);
+        activeGroup.add(ground, flMain, flSide1, flSide2, baseGrass);
       } else if (mode === 'grass') {
+        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
         const g1 = buildGrassFieldGroup(GRASS_MAP[key], windUniforms, { clumpCount: 55, radius: 0.85, seed: 55, wireframe });
-        activeGroup.add(g1);
+        activeGroup.add(ground, g1);
       } else {
-        // Mixed Photorealistic Botanical Garden (Oak + Pine + Birch + Flowers + Meadow Grass + Mossy Boulder)
-        const oak = buildTreeMeshGroup('oak', 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 1.0 });
-        oak.position.set(-0.6, 0, -0.8);
-        const pine = buildTreeMeshGroup('pine', 202, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 0.96 });
-        pine.position.set(3.8, 0, -2.5);
-        const birch = buildTreeMeshGroup('birch', 303, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 0.95 });
-        birch.position.set(-4.2, 0, -2.1);
-        activeGroup.add(oak, pine, birch, rock);
-
-        // Foreground grass meadow surrounding the clearing
-        activeGroup.add(buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 95, minRadius: 0.35, radius: 4.5, seed: 71, wireframe }));
-        activeGroup.add(buildGrassFieldGroup('foxtail', windUniforms, { clumpCount: 38, minRadius: 0.6, radius: 4.2, seed: 83, wireframe }));
-        activeGroup.add(buildGrassFieldGroup('sedge', windUniforms, { clumpCount: 45, minRadius: 0.4, radius: 3.6, seed: 95, wireframe }));
-
-        // Foreground flower clusters (Daisies, Wild Roses, Tulips)
-        const flowerSpecs = [
-          { p: 'daisy', x: 0.55, z: 2.15, h: 0.48, s: 11 },
-          { p: 'daisy', x: 0.82, z: 2.35, h: 0.42, s: 12 },
-          { p: 'daisy', x: 0.35, z: 2.48, h: 0.45, s: 13 },
-          { p: 'rose',  x: 1.45, z: 1.85, h: 0.54, s: 21 },
-          { p: 'rose',  x: 1.68, z: 2.05, h: 0.47, s: 22 },
-          { p: 'tulip', x: -0.45, z: 2.25, h: 0.46, s: 31 },
-          { p: 'tulip', x: -0.68, z: 2.08, h: 0.42, s: 32 },
-          { p: 'tulip', x: -0.25, z: 2.42, h: 0.49, s: 33 },
-        ];
-        for (const fs of flowerSpecs) {
-          const fl = buildFlowerMeshGroup(fs.p, fs.s, windUniforms, { heightMeters: fs.h, useNormalMap: useNormal, wireframe });
-          fl.position.set(fs.x, 0, fs.z);
-          fl.rotation.y = fs.s * 0.9;
-          activeGroup.add(fl);
-        }
+        const built = buildBotanicalGardenGroup(windUniforms, {
+          showLeaves,
+          useNormalMap: useNormal,
+          wireframe,
+          gardenTheme: key,
+        });
+        activeGroup.add(built.group);
+        activeAnimatedMaps = built.animatedMaps;
+        activeStreamUniforms = built.waterStreamUniforms;
       }
 
       scene.add(activeGroup);
@@ -319,10 +342,19 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Expose deterministic frame render & state switch hooks for screenshot verification
+    function stepAnimation(tSec) {
+      const enabled = chkWind.checked;
+      const t = enabled ? tSec : 0;
+      windUniforms.uTime.value = t;
+      if (activeStreamUniforms) activeStreamUniforms.uTime.value = t;
+      for (const m of activeAnimatedMaps) {
+        m.offset.set(t * 0.028, t * 0.019);
+      }
+    }
+
     window.__botanicalReady = true;
-    window.__renderOnce = (t = 0.4) => {
-      windUniforms.uTime.value = chkWind.checked ? t : 0;
+    window.__renderOnce = (t = 0.45) => {
+      stepAnimation(t);
       renderer.render(scene, camera);
     };
     window.__setInspectionState = (opts = {}) => {
@@ -343,7 +375,7 @@
       window.__renderOnce(0.45);
     } else {
       renderer.setAnimationLoop(() => {
-        windUniforms.uTime.value = chkWind.checked ? (performance.now() - startTime) * 0.001 : 0;
+        stepAnimation((performance.now() - startTime) * 0.001);
         renderer.render(scene, camera);
       });
     }

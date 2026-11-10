@@ -21,14 +21,14 @@ const puppeteer = require( 'puppeteer-core' );
 
 const SHOTS = [
 	{ name: '01_garden_hero', state: { view: 'all', species: 'oak', cam: 'hero', leaves: true, hud: true } },
-	{ name: '02_garden_closeup_flowers_grass', state: { view: 'all', species: 'oak', cam: 'closeup', leaves: true, hud: false } },
-	{ name: '03_tree_oak_hero', state: { view: 'tree', species: 'oak', cam: 'hero', leaves: true, hud: false } },
-	{ name: '04_tree_pine_hero', state: { view: 'tree', species: 'pine', cam: 'hero', leaves: true, hud: false } },
-	{ name: '05_tree_birch_closeup', state: { view: 'tree', species: 'birch', cam: 'closeup', leaves: true, hud: false } },
-	{ name: '06_flower_daisy_closeup', state: { view: 'flower', species: 'oak', cam: 'closeup', leaves: true, hud: false } },
-	{ name: '07_flower_rose_closeup', state: { view: 'flower', species: 'pine', cam: 'closeup', leaves: true, hud: false } },
-	{ name: '08_flower_tulip_closeup', state: { view: 'flower', species: 'birch', cam: 'closeup', leaves: true, hud: false } },
-	{ name: '09_grass_foxtail_closeup', state: { view: 'grass', species: 'pine', cam: 'closeup', leaves: true, hud: false } },
+	{ name: '02_garden_fountain_lake', state: { view: 'all', species: 'oak', cam: 'closeup', leaves: true, hud: false } },
+	{ name: '03_garden_rockery_flagstones', state: { view: 'all', species: 'oak', cam: 'rockery', leaves: true, hud: false } },
+	{ name: '04_garden_top_down_audit', state: { view: 'all', species: 'oak', cam: 'top', leaves: true, hud: false } },
+	{ name: '05_garden_rear_panorama', state: { view: 'all', species: 'oak', cam: 'back', leaves: true, hud: false } },
+	{ name: '06_tree_pine_hero', state: { view: 'tree', species: 'pine', cam: 'hero', leaves: true, hud: false } },
+	{ name: '07_flower_daisy_closeup', state: { view: 'flower', species: 'oak', cam: 'closeup', leaves: true, hud: false } },
+	{ name: '08_flower_rose_closeup', state: { view: 'flower', species: 'pine', cam: 'closeup', leaves: true, hud: false } },
+	{ name: '09_flower_tulip_closeup', state: { view: 'flower', species: 'birch', cam: 'closeup', leaves: true, hud: false } },
 	{ name: '10_tree_oak_without_leaves_ablation', state: { view: 'tree', species: 'oak', cam: 'hero', leaves: false, hud: false } },
 ];
 

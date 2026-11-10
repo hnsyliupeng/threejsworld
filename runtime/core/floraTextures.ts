@@ -113,28 +113,215 @@ export function synthesizeSoilSurface( size = 256, seed = 77 ): ShapedSurfaceBuf
 
 			const broad = periodicFbm2D( u, v, 4, 4, seed );
 			const grit = periodicFbm2D( u, v, 16, 3, seed + 19 );
-			return [ 0.024 * ( broad - 0.5 ) + 0.010 * ( grit - 0.5 ), grit ];
+			return [ 0.026 * ( broad - 0.5 ) + 0.012 * ( grit - 0.5 ), grit ];
 
 		},
 		( u, v, r ) => {
 
-			const cavity = clamp01( 0.76 + r.medium * 12 + r.broad * 4 );
-			const mossPatch = clamp01( ( periodicFbm2D( u, v, 3, 3, seed + 99 ) - 0.44 ) * 2.8 );
-			const litter = clamp01( ( r.tag - 0.62 ) * 2.4 );
+			const cavity = clamp01( 0.78 + r.medium * 12 + r.broad * 4 );
+			const mossPatch = clamp01( ( periodicFbm2D( u, v, 4, 3, seed + 99 ) - 0.34 ) * 2.6 );
+			const clover = clamp01( ( periodicFbm2D( u, v, 12, 2, seed + 151 ) - 0.50 ) * 3.0 );
+			const litter = clamp01( ( r.tag - 0.65 ) * 2.2 );
+			const greenBlend = clamp01( mossPatch * 0.75 + clover * 0.45 );
 			return {
 				color: [
-					( 0.16 * ( 1 - mossPatch ) + 0.11 * mossPatch + 0.06 * litter ) * cavity,
-					( 0.13 * ( 1 - mossPatch ) + 0.21 * mossPatch + 0.04 * litter ) * cavity,
-					( 0.08 * ( 1 - mossPatch ) + 0.06 * mossPatch + 0.02 * litter ) * cavity,
+					( 0.14 * ( 1 - greenBlend ) + 0.08 * greenBlend + 0.05 * litter ) * cavity,
+					( 0.11 * ( 1 - greenBlend ) + 0.19 * greenBlend + 0.03 * litter ) * cavity,
+					( 0.07 * ( 1 - greenBlend ) + 0.04 * greenBlend + 0.02 * litter ) * cavity,
 				],
 				alpha: 1,
-				roughness: clamp01( 0.93 - 0.06 * mossPatch ),
+				roughness: clamp01( 0.92 - 0.08 * greenBlend ),
 				metalness: 0,
 				cavity,
 			};
 
 		},
 	);
+
+}
+
+/**
+ * Surface::shaped Carved Travertine / Limestone PBR for the Fountain (喷泉).
+ * Smooth warm cream-buff limestone with sedimentary bedding veins & fine chisel micro-grain (no polka dots!).
+ */
+export function synthesizeCarvedLimestoneSurface( size = 256, seed = 61 ): ShapedSurfaceBuffers {
+
+	return synthesizeShapedSurface(
+		size,
+		2.0,
+		( u, v ) => {
+
+			const warp = periodicFbm2D( u, v, 3, 3, seed ) * 0.25;
+			const strata = Math.sin( ( v + warp * 0.3 ) * Math.PI * 12 ) * 0.004;
+			const mineral = ( periodicFbm2D( u, v, 8, 4, seed + 17 ) - 0.5 ) * 0.008;
+			const micro = ( periodicValueNoise2D( u, v, 28, seed + 31 ) - 0.5 ) * 0.003;
+			return [ strata + mineral + micro, mineral > 0.0015 ? 1 : 0 ];
+
+		},
+		( u, v, r ) => {
+
+			const cavity = clamp01( 0.84 + r.medium * 10 + r.broad * 3 );
+			const wear = clamp01( r.medium * 14 + r.fine * 22 );
+			const vein = periodicFbm2D( u * 1.0, v * 0.5, 4, 3, seed + 41 );
+			const grain = periodicValueNoise2D( u, v, 32, seed + 59 );
+			const stoneBase = ( 0.66 + 0.08 * vein + 0.06 * wear + 0.03 * ( grain - 0.5 ) ) * cavity;
+			return {
+				color: [
+					stoneBase * 1.00,
+					stoneBase * 0.95,
+					stoneBase * 0.86,
+				],
+				alpha: 1,
+				roughness: clamp01( 0.68 - 0.16 * wear ),
+				metalness: 0,
+				cavity,
+			};
+
+		},
+	);
+
+}
+
+/**
+ * Surface::shaped Cleaved Bluestone / Slate Granite PBR for the Flagstone Path (石板路).
+ * Natural cleaved mineral veins & crystalline granite grain (no circular polka-dot holes!).
+ */
+export function synthesizeFlagstoneSlateSurface( size = 256, seed = 83 ): ShapedSurfaceBuffers {
+
+	return synthesizeShapedSurface(
+		size,
+		1.8,
+		( u, v ) => {
+
+			const warpU = ( periodicFbm2D( u, v, 3, 3, seed ) - 0.5 ) * 0.28;
+			const warpV = ( periodicFbm2D( u, v, 3, 3, seed + 9 ) - 0.5 ) * 0.28;
+			const cleavage = ( periodicFbm2D( u + warpU * 0.2, v + warpV * 0.2, 5, 4, seed + 19 ) - 0.5 ) * 0.018;
+			// Ridged mineral fracture vein instead of circular dots
+			const veinDist = Math.abs( periodicFbm2D( u + warpU, v + warpV, 4, 3, seed + 37 ) - 0.5 );
+			const vein = - 0.010 * Math.max( 0, 1 - veinDist * 14 );
+			const grit = ( periodicValueNoise2D( u, v, 28, seed + 53 ) - 0.5 ) * 0.005;
+			return [ cleavage + vein + grit, veinDist < 0.04 ? 1 : 0 ];
+
+		},
+		( u, v, r ) => {
+
+			const cavity = clamp01( 0.80 + r.medium * 12 + r.broad * 4 );
+			const wear = clamp01( r.medium * 16 + r.fine * 24 );
+			const fleck = periodicValueNoise2D( u, v, 34, seed + 71 ) > 0.76 ? 0.07 : 0.0;
+			const warmShift = periodicFbm2D( u, v, 3, 2, seed + 93 );
+			const base = ( 0.36 + 0.10 * wear + fleck ) * cavity;
+			const mossEdge = r.tag > 0.5 ? 0.22 : 0;
+			return {
+				color: [
+					( base * ( 0.90 + 0.18 * warmShift ) ) * ( 1 - mossEdge ) + 0.14 * mossEdge,
+					( base * ( 0.94 + 0.10 * warmShift ) ) * ( 1 - mossEdge ) + 0.22 * mossEdge,
+					( base * 1.02 ) * ( 1 - mossEdge ) + 0.09 * mossEdge,
+				],
+				alpha: 1,
+				roughness: clamp01( 0.74 - 0.18 * wear + 0.16 * mossEdge ),
+				metalness: 0,
+				cavity,
+			};
+
+		},
+	);
+
+}
+
+/**
+ * Surface::shaped Stratified Taihu / Granite Rockery PBR (假山多层岩石 + 裂隙纹理 + 苔藓 + 石英微粒).
+ * Uses domain-warped ridge cracks and sedimentary strata — zero artificial polka dots.
+ */
+export function synthesizeScholarRockSurface( size = 512, seed = 109 ): ShapedSurfaceBuffers {
+
+	return synthesizeShapedSurface(
+		size,
+		2.8,
+		( u, v ) => {
+
+			const wU = ( periodicFbm2D( u, v, 3, 3, seed ) - 0.5 ) * 0.36;
+			const wV = ( periodicFbm2D( u, v, 3, 3, seed + 13 ) - 0.5 ) * 0.36;
+			// Sedimentary karst strata warped organically
+			const strata = Math.sin( ( v + wV * 0.55 ) * Math.PI * 10 ) * 0.016;
+			const broad = ( periodicFbm2D( u + wU * 0.25, v + wV * 0.25, 4, 4, seed + 7 ) - 0.5 ) * 0.055;
+			// Sharp branching fracture crevices (ridged FBM, NOT circular Worley spots!)
+			const ridgeA = Math.abs( periodicFbm2D( u + wU, v + wV, 5, 3, seed + 23 ) - 0.5 );
+			const ridgeB = Math.abs( periodicFbm2D( u - wV * 0.6, v + wU * 0.6, 8, 3, seed + 41 ) - 0.5 );
+			const crack = - 0.028 * Math.max( 0, 1 - ridgeA * 15 ) - 0.016 * Math.max( 0, 1 - ridgeB * 18 );
+			const crystalline = ( periodicFbm2D( u, v, 20, 3, seed + 53 ) - 0.5 ) * 0.012;
+			return [ strata + broad + crack + crystalline, Math.max( 0, 1 - ridgeA * 12 ) ];
+
+		},
+		( u, v, r ) => {
+
+			const cavity = clamp01( 0.72 + r.medium * 14 + r.broad * 5 );
+			const wear = clamp01( r.medium * 20 + r.fine * 28 );
+			const quartz = periodicValueNoise2D( u, v, 42, seed + 89 ) > 0.80 ? 0.12 : 0;
+			const calciteVein = clamp01( ( r.tag - 0.68 ) * 2.4 );
+			const lichen = clamp01( ( periodicFbm2D( u, v, 6, 3, seed + 131 ) - 0.58 ) * 2.5 ) * ( 1 - calciteVein );
+			const mossMask = clamp01( ( periodicFbm2D( u, v, 4, 3, seed + 177 ) - 0.48 ) * 2.4 ) * clamp01( 0.6 - r.medium * 10 );
+			const stone = ( 0.34 + 0.13 * wear + quartz + 0.14 * calciteVein ) * cavity;
+			return {
+				color: [
+					stone * ( 1 - mossMask ) * ( 1 - lichen * 0.25 ) + 0.12 * mossMask + 0.22 * lichen,
+					stone * ( 1 - mossMask ) * ( 1 - lichen * 0.10 ) + 0.23 * mossMask + 0.28 * lichen,
+					stone * ( 1 - mossMask ) * ( 1 - lichen * 0.35 ) + 0.07 * mossMask + 0.14 * lichen,
+				],
+				alpha: 1,
+				roughness: clamp01( 0.78 - 0.22 * wear + 0.14 * mossMask - 0.10 * quartz ),
+				metalness: 0,
+				cavity,
+			};
+
+		},
+	);
+
+}
+
+/**
+ * Seamless Periodic Water Ripple Normal Map (linear tangent space RGB) for animated lake & fountain pools.
+ */
+export function synthesizeWaterNormalMap( size = 256, seed = 149 ): Uint8Array {
+
+	const heights = new Float32Array( size * size );
+	for ( let y = 0; y < size; y ++ ) {
+
+		const v = y / size;
+		for ( let x = 0; x < size; x ++ ) {
+
+			const u = x / size;
+			const w1 = periodicFbm2D( u, v, 6, 3, seed );
+			const w2 = Math.sin( ( u * 4 + v * 2 ) * Math.PI * 2 ) * 0.18;
+			const w3 = Math.cos( ( u * 3 - v * 5 ) * Math.PI * 2 ) * 0.14;
+			heights[ y * size + x ] = w1 * 0.68 + w2 + w3;
+
+		}
+
+	}
+
+	const out = new Uint8Array( size * size * 4 );
+	const strength = 5.5;
+	for ( let y = 0; y < size; y ++ ) {
+
+		const ym = ( y - 1 + size ) % size;
+		const yp = ( y + 1 ) % size;
+		for ( let x = 0; x < size; x ++ ) {
+
+			const xm = ( x - 1 + size ) % size;
+			const xp = ( x + 1 ) % size;
+			const dhx = ( heights[ y * size + xp ]! - heights[ y * size + xm ]! ) * strength;
+			const dhy = ( heights[ yp * size + x ]! - heights[ ym * size + x ]! ) * strength;
+			const l = Math.hypot( - dhx, - dhy, 1 ) || 1;
+			const p4 = ( y * size + x ) * 4;
+			out[ p4 ] = Math.round( ( ( - dhx / l ) * 0.5 + 0.5 ) * 255 );
+			out[ p4 + 1 ] = Math.round( ( ( - dhy / l ) * 0.5 + 0.5 ) * 255 );
+			out[ p4 + 2 ] = Math.round( ( ( 1 / l ) * 0.5 + 0.5 ) * 255 );
+			out[ p4 + 3 ] = 255;
+
+		}
+
+	}
+	return out;
 
 }
 
