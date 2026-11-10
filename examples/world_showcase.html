@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ThreeJSWorld — Photorealistic Procedural Showcase</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #11161b; color: #e6edf3; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    #hud {
+      position: fixed; top: 14px; left: 14px; z-index: 10;
+      background: rgba(15, 20, 26, 0.86); border: 1px solid #2b3644; border-radius: 10px;
+      padding: 12px 16px; width: 290px; backdrop-filter: blur(8px);
+    }
+    h1 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #7ee787; }
+    p { font-size: 12px; color: #9fb1c4; margin-bottom: 10px; line-height: 1.4; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; font-size: 12px; }
+    select, button { background: #1b2430; color: #e6edf3; border: 1px solid #354254; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+    button:hover { background: #263244; }
+    #stats { font-family: ui-monospace, monospace; font-size: 11px; color: #8b949e; margin-top: 8px; border-top: 1px solid #25303d; padding-top: 6px; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.172.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <h1>ThreeJSWorld Showcase</h1>
+    <p>Zero-asset procedural 3D fusing Surface::shaped PBR, golden-angle botanical skeletons, upNormalCards &amp; diagnostic ablation.</p>
+    <div class="row">
+      <label for="preset">Species</label>
+      <select id="preset">
+        <option value="pine">Scots Pine (spiral)</option>
+        <option value="fir">Alpine Fir (whorl)</option>
+        <option value="oak">Deciduous Oak</option>
+      </select>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="toggleLeaves" checked /> Foliage (--without leaves)</label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="toggleRocks" checked /> Mossy Granite (--without rocks)</label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="toggleWire" /> Wireframe Audit</label>
+    </div>
+    <div id="stats">Initializing WebGL scene…</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const PRESETS = {
+      pine: { heightMeters: 9.2, crownEnvelope: 'pine-plates', trunkRadius: 0.24, trunkFlare: 0.45, trunkGnarl: 0.04, mode: 'spiral', branchCount: 28, span: [0.38, 0.96], angleDeg: [58, 35], lengthRatio: 0.34, droop: 0.04, upturn: 0.14, leafSize: 0.72, barkColor: '#5b4232', leafColor: '#2c4c27', seed: 101 },
+      fir:  { heightMeters: 10.5, crownEnvelope: 'cone', trunkRadius: 0.22, trunkFlare: 0.40, trunkGnarl: 0.015, mode: 'whorl', whorlCount: 6, branchCount: 42, span: [0.16, 0.98], angleDeg: [78, 42], lengthRatio: 0.36, droop: 0.12, upturn: 0.06, leafSize: 0.65, barkColor: '#4a3a2f', leafColor: '#203f26', seed: 202 },
+      oak:  { heightMeters: 11.4, crownEnvelope: 'round', trunkRadius: 0.42, trunkFlare: 0.75, trunkGnarl: 0.055, mode: 'spiral', branchCount: 34, span: [0.30, 0.92], angleDeg: [54, 30], lengthRatio: 0.44, droop: 0.06, upturn: 0.18, leafSize: 0.95, barkColor: '#5c4b3c', leafColor: '#3c6a2d', seed: 303 },
+    };
+
+    const GOLDEN_ANGLE = 2.399963229728653;
+    function mulberry32(seed) {
+      let s = seed >>> 0 || 1;
+      return () => {
+        let t = (s += 0x6d2b79f5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function buildProceduralLeafAtlasTexture() {
+      const size = 128;
+      const data = new Uint8Array(size * size * 4);
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const u = (x / size) * 2 - 1;
+          const v = (y / size) * 2 - 1;
+          const r = Math.hypot(u, v);
+          const angle = Math.atan2(v, u);
+          const lobe = 0.68 + 0.18 * Math.sin(angle * 7) + 0.08 * Math.cos(angle * 13);
+          const inside = r < lobe;
+          const i = (y * size + x) * 4;
+          const shade = 0.78 + 0.22 * (1 - r);
+          data[i] = Math.round(70 * shade);
+          data[i + 1] = Math.round(128 * shade);
+          data[i + 2] = Math.round(52 * shade);
+          data[i + 3] = inside ? 255 : 0;
+        }
+      }
+      const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function buildTreeGroup(spec, showLeaves, wireframe) {
+      const rng = mulberry32(spec.seed);
+      const group = new THREE.Group();
+      const embedY = -0.3 * (spec.heightMeters / 7.55);
+      const trunkPts = [];
+      const trunkRads = [];
+      let px = 0, py = embedY, pz = 0;
+      const segs = 9;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        trunkPts.push(new THREE.Vector3(px, py, pz));
+        const flare = t < 0.18 ? 1 + spec.trunkFlare * (1 - t / 0.18) : 1;
+        trunkRads.push(Math.max(0.02, spec.trunkRadius * flare * (1 - 0.8 * t)));
+        px += (rng() * 2 - 1) * spec.trunkGnarl * spec.heightMeters * 0.25;
+        pz += (rng() * 2 - 1) * spec.trunkGnarl * spec.heightMeters * 0.25;
+        py = embedY + (spec.heightMeters - embedY) * ((i + 1) / segs);
+      }
+
+      const barkMat = new THREE.MeshStandardMaterial({ color: spec.barkColor, roughness: 0.88, wireframe });
+      const bPos = [], bNrm = [], bIdx = [];
+      const addTube = (pts, rads, radialSegs) => {
+        const base = bPos.length / 3;
+        for (let r = 0; r < pts.length; r++) {
+          for (let j = 0; j <= radialSegs; j++) {
+            const th = (j / radialSegs) * Math.PI * 2;
+            const nx = Math.cos(th), nz = Math.sin(th);
+            bPos.push(pts[r].x + nx * rads[r], pts[r].y, pts[r].z + nz * rads[r]);
+            bNrm.push(nx, 0.12, nz);
+          }
+        }
+        const stride = radialSegs + 1;
+        for (let r = 0; r < pts.length - 1; r++) {
+          for (let j = 0; j < radialSegs; j++) {
+            const a = base + r * stride + j, b = a + 1, c = a + stride, d = c + 1;
+            bIdx.push(a, c, b, b, c, d);
+          }
+        }
+      };
+      addTube(trunkPts, trunkRads, 8);
+
+      const leafAnchors = [];
+      for (let b = 0; b < spec.branchCount; b++) {
+        const u = b / Math.max(1, spec.branchCount - 1);
+        const t = spec.span[0] + (spec.span[1] - spec.span[0]) * u;
+        const idxF = t * segs;
+        const i0 = Math.min(segs - 1, Math.floor(idxF));
+        const origin = trunkPts[i0].clone().lerp(trunkPts[i0 + 1], idxF - i0);
+        const rad0 = (trunkRads[i0] + trunkRads[i0 + 1]) * 0.28;
+        const az = spec.mode === 'whorl'
+          ? (b % spec.whorlCount) * (Math.PI * 2 / spec.whorlCount) + Math.floor(b / spec.whorlCount) * 0.65
+          : b * GOLDEN_ANGLE;
+        const ang = ((spec.angleDeg[0] + (spec.angleDeg[1] - spec.angleDeg[0]) * u) * Math.PI) / 180;
+        const env = spec.crownEnvelope === 'cone' ? Math.max(0.2, 1 - u * 0.85) : Math.sin((0.15 + 0.85 * u) * Math.PI);
+        const len = spec.heightMeters * spec.lengthRatio * env * (0.85 + rng() * 0.3);
+        const dir = new THREE.Vector3(Math.sin(ang) * Math.cos(az), Math.cos(ang), Math.sin(ang) * Math.sin(az));
+        const bPts = [], bRads = [];
+        let cur = origin.clone();
+        for (let s = 0; s <= 4; s++) {
+          bPts.push(cur.clone());
+          bRads.push(Math.max(0.01, rad0 * (1 - 0.85 * (s / 4))));
+          if (s >= 1) {
+            leafAnchors.push({ pos: cur.clone(), dir: dir.clone().add(new THREE.Vector3(0, 0.4, 0)).normalize(), size: spec.leafSize * (0.8 + rng() * 0.45) });
+          }
+          dir.y += (spec.upturn - spec.droop * (s / 4)) * (len / 4);
+          dir.normalize();
+          cur.addScaledVector(dir, len / 4);
+        }
+        addTube(bPts, bRads, 5);
+      }
+
+      const barkGeo = new THREE.BufferGeometry();
+      barkGeo.setAttribute('position', new THREE.Float32BufferAttribute(bPos, 3));
+      barkGeo.setAttribute('normal', new THREE.Float32BufferAttribute(bNrm, 3));
+      barkGeo.setIndex(bIdx);
+      const barkMesh = new THREE.Mesh(barkGeo, barkMat);
+      barkMesh.castShadow = true;
+      barkMesh.receiveShadow = true;
+      group.add(barkMesh);
+
+      if (showLeaves) {
+        const lPos = [], lNrm = [], lUv = [], lIdx = [];
+        for (const lf of leafAnchors) {
+          const hs = lf.size * 0.55;
+          const base = lPos.length / 3;
+          const corners = [
+            [lf.pos.x - hs, lf.pos.y - hs * 0.3, lf.pos.z, 0, 0],
+            [lf.pos.x + hs, lf.pos.y - hs * 0.3, lf.pos.z, 1, 0],
+            [lf.pos.x + hs, lf.pos.y + hs * 1.4, lf.pos.z, 1, 1],
+            [lf.pos.x - hs, lf.pos.y + hs * 1.4, lf.pos.z, 0, 1],
+          ];
+          for (let side = 0; side < 2; side++) {
+            for (const [cx, cy, cz, u, v] of corners) {
+              lPos.push(cx, cy, cz);
+              lNrm.push(lf.dir.x, lf.dir.y, lf.dir.z);
+              lUv.push(u, v);
+            }
+          }
+          lIdx.push(base, base + 1, base + 2, base, base + 2, base + 3, base + 4, base + 6, base + 5, base + 4, base + 7, base + 6);
+        }
+        const leafGeo = new THREE.BufferGeometry();
+        leafGeo.setAttribute('position', new THREE.Float32BufferAttribute(lPos, 3));
+        leafGeo.setAttribute('normal', new THREE.Float32BufferAttribute(lNrm, 3));
+        leafGeo.setAttribute('uv', new THREE.Float32BufferAttribute(lUv, 2));
+        leafGeo.setIndex(lIdx);
+        const leafMat = new THREE.MeshStandardMaterial({
+          color: spec.leafColor,
+          map: leafAtlas,
+          alphaTest: 0.45,
+          roughness: 0.58,
+          side: THREE.FrontSide,
+          wireframe,
+        });
+        const leafMesh = new THREE.Mesh(leafGeo, leafMat);
+        leafMesh.castShadow = true;
+        group.add(leafMesh);
+      }
+
+      return group;
+    }
+
+    function buildMossyBoulder(wireframe) {
+      const geo = new THREE.IcosahedronGeometry(1.1, 2);
+      const pos = geo.attributes.position;
+      const nrm = geo.attributes.normal;
+      const col = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i), y = pos.getY(i) * 0.65, z = pos.getZ(i);
+        const d = 1 + 0.14 * Math.sin(x * 4.2) * Math.cos(z * 3.9);
+        x *= d; y = y * d - 0.28; z *= d;
+        pos.setXYZ(i, x, y, z);
+        const up = Math.max(0, nrm.getY(i));
+        const moss = y > 0.05 ? Math.min(1, up * 0.85) : 0;
+        col[i * 3] = 0.44 * (1 - moss) + 0.22 * moss;
+        col[i * 3 + 1] = 0.43 * (1 - moss) + 0.44 * moss;
+        col[i * 3 + 2] = 0.41 * (1 - moss) + 0.14 * moss;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      const rock = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, wireframe }));
+      rock.position.set(2.4, 0, 1.4);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      return rock;
+    }
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#8db2d9');
+    scene.fog = new THREE.Fog('#8db2d9', 22, 75);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(9, 6.5, 11);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 4, 0);
+    controls.update();
+
+    const hemi = new THREE.HemisphereLight('#d9ebff', '#3a4a2a', 0.65);
+    const sun = new THREE.DirectionalLight('#fff2da', 2.4);
+    sun.position.set(14, 22, 10);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    scene.add(hemi, sun);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(30, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: '#425532', roughness: 0.94 }),
+    );
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const leafAtlas = buildProceduralLeafAtlasTexture();
+    let activeGroup = new THREE.Group();
+    scene.add(activeGroup);
+
+    function rebuild() {
+      scene.remove(activeGroup);
+      activeGroup = new THREE.Group();
+      const speciesKey = document.getElementById('preset').value;
+      const showLeaves = document.getElementById('toggleLeaves').checked;
+      const showRocks = document.getElementById('toggleRocks').checked;
+      const wire = document.getElementById('toggleWire').checked;
+      activeGroup.add(buildTreeGroup(PRESETS[speciesKey], showLeaves, wire));
+      if (showRocks) activeGroup.add(buildMossyBoulder(wire));
+      scene.add(activeGroup);
+      let tris = 0;
+      activeGroup.traverse((o) => { if (o.isMesh && o.geometry.index) tris += o.geometry.index.count / 3; });
+      document.getElementById('stats').textContent = `Species: ${speciesKey} | Active Triangles: ${tris}`;
+    }
+
+    ['preset', 'toggleLeaves', 'toggleRocks', 'toggleWire'].forEach((id) => {
+      document.getElementById(id).addEventListener('change', rebuild);
+    });
+    rebuild();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+  </script>
+</body>
+</html>

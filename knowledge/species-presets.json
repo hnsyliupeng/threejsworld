@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "threejsworld.species-presets.v1",
+  "goldenAngleRad": 2.399963229728653,
+  "rootGroundEmbedRule": {
+    "treeFormula": "0.3 * (heightMeters / 7.55)",
+    "flowerLeafStemEmbedMeters": -0.003,
+    "rosetteTipEmbedMeters": -0.006
+  },
+  "species": {
+    "fir": {
+      "source": "solstice/fir.species + vegetation/fir",
+      "heightMeters": 6.0,
+      "crownEnvelope": "cone",
+      "trunkRadius": 0.16,
+      "trunkFlare": 0.45,
+      "trunkGnarl": 0.015,
+      "barkColor": "#9a9183",
+      "leafColor": "#4b6c56",
+      "alphaTest": 0.45,
+      "upNormalCards": true,
+      "lodVertexBudgets": { "lod0": 795, "lod1": 513, "lod2": 331 },
+      "levels": [
+        {
+          "mode": "whorl",
+          "whorlCount": 5,
+          "whorlLayers": 12,
+          "span": [0.28, 0.92],
+          "angleDeg": [102, 74],
+          "lengthRatio": 0.36,
+          "radiusRatio": 0.42,
+          "droop": 0.25,
+          "upturn": 0.08,
+          "gnarl": 0.12
+        }
+      ],
+      "impostorElevationsDeg": [0, 30, 60, 90]
+    },
+    "pine": {
+      "source": "ez-tree/pine_medium + vegetation/pine",
+      "heightMeters": 9.0,
+      "crownEnvelope": "pine-plates",
+      "trunkRadius": 0.21,
+      "trunkFlare": 0.35,
+      "trunkGnarl": 0.04,
+      "barkColor": "#b8653a",
+      "leafColor": "#3f8a4c",
+      "alphaTest": 0.35,
+      "upNormalCards": true,
+      "lodVertexBudgets": { "lod0": 996, "lod1": 560, "lod2": 290 },
+      "levels": [
+        {
+          "mode": "spiral",
+          "goldenAngleRad": 2.399963,
+          "branchCount": 12,
+          "span": [0.45, 0.95],
+          "angleDeg": [98, 62],
+          "lengthRatio": 0.32,
+          "radiusRatio": 0.38,
+          "droop": 0.08,
+          "upturn": 0.12,
+          "gnarl": 0.16
+        }
+      ],
+      "impostorElevationsDeg": [0, 30, 60, 90]
+    },
+    "oak": {
+      "source": "solstice/oak.species + ez-tree/oak_medium + vegetation/broadleaf",
+      "heightMeters": 7.5,
+      "crownEnvelope": "round",
+      "trunkRadius": 0.24,
+      "trunkFlare": 0.60,
+      "trunkGnarl": 0.05,
+      "barkColor": "#8a7350",
+      "leafColor": "#4f9a2a",
+      "alphaTest": 0.50,
+      "upNormalCards": true,
+      "lodVertexBudgets": { "lod0": 800, "lod1": 460, "lod2": 240 },
+      "levels": [
+        {
+          "mode": "spiral",
+          "goldenAngleRad": 2.399963,
+          "branchCount": 7,
+          "span": [0.36, 0.97],
+          "angleDeg": [72, 44],
+          "lengthRatio": 0.50,
+          "radiusRatio": 0.55,
+          "droop": 0.05,
+          "upturn": 0.12,
+          "gnarl": 0.25
+        },
+        {
+          "mode": "spiral",
+          "goldenAngleRad": 2.399963,
+          "branchCount": 4,
+          "span": [0.20, 0.95],
+          "angleDeg": [48, 36],
+          "lengthRatio": 0.42,
+          "radiusRatio": 0.60,
+          "droop": 0.10,
+          "upturn": 0.25,
+          "gnarl": 0.40
+        }
+      ],
+      "impostorElevationsDeg": [0, 30, 60, 90]
+    },
+    "willow": {
+      "source": "vegetation/willow",
+      "heightMeters": 7.0,
+      "crownEnvelope": "bell-canopy",
+      "trunkRadius": 0.52,
+      "trunkFlare": 0.50,
+      "trunkGnarl": 0.10,
+      "barkColor": "#6f6a45",
+      "leafColor": "#6cad3a",
+      "alphaTest": 0.45,
+      "upNormalCards": true,
+      "lodVertexBudgets": { "lod0": 900, "lod1": 520, "lod2": 280 },
+      "levels": [
+        {
+          "mode": "bilateral-clump",
+          "branchCount": 4,
+          "span": [0.24, 0.36],
+          "angleDeg": [50, 35],
+          "lengthRatio": 0.52,
+          "radiusRatio": 0.55,
+          "droop": 0.45,
+          "upturn": 0.15,
+          "gnarl": 0.22
+        }
+      ],
+      "impostorElevationsDeg": [0, 30, 60, 90]
+    },
+    "bush": {
+      "source": "vegetation/bush + solstice/bush.species",
+      "heightMeters": 1.3,
+      "crownEnvelope": "dome",
+      "trunkRadius": 0.05,
+      "trunkFlare": 0.20,
+      "trunkGnarl": 0.18,
+      "barkColor": "#6e5a40",
+      "leafColor": "#55a02e",
+      "alphaTest": 0.45,
+      "upNormalCards": true,
+      "lodVertexBudgets": { "lod0": 490, "lod1": 280, "lod2": 140 },
+      "levels": [
+        {
+          "mode": "spiral",
+          "goldenAngleRad": 2.399963,
+          "branchCount": 6,
+          "span": [0.05, 0.70],
+          "angleDeg": [68, 35],
+          "lengthRatio": 0.65,
+          "radiusRatio": 0.50,
+          "droop": 0.05,
+          "upturn": 0.20,
+          "gnarl": 0.30
+        }
+      ],
+      "impostorElevationsDeg": [0, 30, 60, 90]
+    },
+    "rock.granite": {
+      "source": "vegetation/rock + solstice/stone",
+      "heightMeters": 1.8,
+      "shape": "convex-hull-scoop-chamfer",
+      "weathering": 0.25,
+      "burialRatio": 0.42,
+      "mossColor": "#7cb83a",
+      "lodVertexBudgets": { "lod0": 260, "lod1": 130, "lod2": 48, "lod3": 36 },
+      "faceWeightedNormals": true,
+      "colliderMaxTris": 100
+    }
+  }
+}

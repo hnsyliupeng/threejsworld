@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "s3s-world.v2",
+  "targetName": "AlpinePineGroveTree",
+  "suitability": "pass",
+  "provenance": {
+    "inputMode": "procedural-preset"
+  },
+  "frame": {
+    "unit": "meter",
+    "up": [0, 1, 0],
+    "forward": [0, 0, 1],
+    "handedness": "right-handed"
+  },
+  "subject": {
+    "primaryDomain": "botanical",
+    "primaryType": "scots-pine",
+    "complexityTier": "moderate",
+    "qualityContract": {
+      "definitionOfDone": "Golden-angle pine skeleton with root-embedded trunk collider, upNormalCards foliage, coverage-preserving mipmaps, and Cluster DAG LOD0-4.",
+      "targetTriangles": 3200,
+      "targetMinDetails": 2,
+      "requiredViewpoints": ["hero_front", "three_quarter", "top_elevation", "closeup_microscope"]
+    }
+  },
+  "evidence": {
+    "detailInventory": {
+      "scanMethod": "species-preset-grammar",
+      "targetMinDetails": 2,
+      "details": [
+        {
+          "id": "det_root_flare",
+          "kind": "ridge",
+          "description": "Root collar flare embedded beneath terrain slope",
+          "scale": "macro",
+          "affects": "geometry",
+          "mapsTo": { "type": "component.localFeature", "ref": "trunk_and_limbs/root_collar_flare" }
+        },
+        {
+          "id": "det_upnormal_sprigs",
+          "kind": "contour",
+          "description": "Upward sky-normal leaf cards avoiding dark DoubleSide undersides",
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": { "type": "component.localFeature", "ref": "needle_canopy_cards/up_normal_sprigs" }
+        }
+      ]
+    }
+  },
+  "materials": [
+    {
+      "id": "scots_pine_bark",
+      "family": "bark",
+      "referencePriorId": "bark.conifer-furrowed",
+      "baseColor": "#5b4232",
+      "roughness": 0.88,
+      "metalness": 0.0,
+      "ior": 1.5,
+      "lightingUnknown": false,
+      "shapedSurface": {
+        "tileMetres": 2.0,
+        "heightRecipe": "vertical-bark-furrows",
+        "reliefBands": { "fineCm": 2, "mediumCm": 10, "broadCm": 45 },
+        "cavityDirt": 0.35
+      }
+    },
+    {
+      "id": "pine_needle_clusters",
+      "family": "leaf",
+      "baseColor": "#2c4c27",
+      "roughness": 0.56,
+      "metalness": 0.0,
+      "ior": 1.45,
+      "alphaTest": 0.45,
+      "doubleSided": false,
+      "upNormalCards": true,
+      "coveragePreservingMipmaps": true,
+      "lightingUnknown": false
+    }
+  ],
+  "parts": [
+    {
+      "id": "pine_root_group",
+      "parentId": null,
+      "name": "PineRoot",
+      "role": "container",
+      "level": "macro",
+      "topologyClass": "material-only",
+      "geometryTier": "T0-primitive",
+      "primitive": "box",
+      "materialId": "scots_pine_bark",
+      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "trunk_and_limbs",
+      "parentId": "pine_root_group",
+      "name": "TrunkAndLimbs",
+      "role": "golden-angle spiral bark skeleton",
+      "level": "macro",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T2-sweep",
+      "primitive": "botanical-skeleton",
+      "materialId": "scots_pine_bark",
+      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "botanicalGrammar": {
+        "preset": "pine",
+        "heightMeters": 9.2,
+        "mode": "spiral",
+        "burialDepthMeters": 0.36
+      },
+      "localFeatures": [
+        { "id": "root_collar_flare", "kind": "ridge", "sizeMeters": 0.12 }
+      ],
+      "runtimeAction": { "sockets": ["canopy_crown"], "colliderKind": "trunk-cylinder" }
+    },
+    {
+      "id": "needle_canopy_cards",
+      "parentId": "trunk_and_limbs",
+      "name": "NeedleCanopyCards",
+      "role": "up-normal foliage card clusters",
+      "level": "meso",
+      "topologyClass": "open-shell",
+      "geometryTier": "T5-fittedBuffer",
+      "primitive": "up-normal-cards",
+      "materialId": "pine_needle_clusters",
+      "transform": { "position": [0, 4.2, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "localFeatures": [
+        { "id": "up_normal_sprigs", "kind": "contour", "sizeMeters": 0.72 }
+      ]
+    }
+  ],
+  "lodAndWorld": {
+    "strategy": "cluster-dag-nanite",
+    "clusterSizeTris": 128,
+    "errorPropagation": "max",
+    "foliageCoverageDirs": 4,
+    "impostor": {
+      "elevationsDeg": [0, 30, 60, 90],
+      "unlitAlbedoPlusNormal": true,
+      "switchThresholdPx": 24
+    },
+    "atmosphereAndGi": {
+      "skyModel": "hillaire-2020",
+      "clouds": "volumetric-ranked",
+      "giMode": "voxel-clipmap-ssgi"
+    }
+  }
+}

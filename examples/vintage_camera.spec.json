@@ -1,0 +1,249 @@
+{
+  "schemaVersion": "s3s-world.v2",
+  "targetName": "VintageRangefinderCamera",
+  "suitability": "pass",
+  "provenance": {
+    "inputMode": "text-grammar"
+  },
+  "frame": {
+    "unit": "meter",
+    "up": [0, 1, 0],
+    "forward": [0, 0, 1],
+    "handedness": "right-handed"
+  },
+  "subject": {
+    "primaryDomain": "object",
+    "primaryType": "vintage-rangefinder-camera",
+    "complexityTier": "complex",
+    "qualityContract": {
+      "definitionOfDone": "Multi-part camera assembly with sculpted leather body, brushed chrome top deck, SDF-subtracted viewfinder pocket, optical glass lens, and symmetric strap eyelets.",
+      "targetTriangles": 18000,
+      "targetMinDetails": 3,
+      "requiredViewpoints": ["hero_front", "three_quarter", "rear_opposite", "top_elevation", "closeup_microscope", "exploded_diagnostic"]
+    }
+  },
+  "evidence": {
+    "detailInventory": {
+      "scanMethod": "8-layer-object-observation",
+      "targetMinDetails": 3,
+      "details": [
+        {
+          "id": "det_shutter_knurl",
+          "kind": "ridge",
+          "description": "Machined knurling and bezel collar on the shutter dial",
+          "scale": "micro",
+          "affects": "geometry",
+          "mapsTo": { "type": "component.localFeature", "ref": "shutter_dial/knurl_bevel" }
+        },
+        {
+          "id": "det_viewfinder_recess",
+          "kind": "hole",
+          "description": "Recessed optical viewfinder pocket modeled as implicit SDF subtract cavity",
+          "scale": "meso",
+          "affects": "geometry",
+          "mapsTo": { "type": "component.localFeature", "ref": "viewfinder_recess/optical_cavity" }
+        },
+        {
+          "id": "det_chrome_edge_wear",
+          "kind": "scratch",
+          "description": "Edge roughness polishing on top deck bevels",
+          "scale": "micro",
+          "affects": "material",
+          "mapsTo": { "type": "material.localOverride", "ref": "brushed_chrome/top_edge_polish" }
+        }
+      ]
+    }
+  },
+  "materials": [
+    {
+      "id": "brushed_chrome",
+      "family": "metal",
+      "referencePriorId": "metal.brushed-chrome",
+      "baseColor": "#cfd4da",
+      "roughness": 0.22,
+      "metalness": 0.96,
+      "ior": 1.5,
+      "anisotropy": 0.65,
+      "lightingUnknown": false,
+      "specularAA": true,
+      "channelGating": { "roughness": "soft", "metalness": "hard" },
+      "shapedSurface": {
+        "tileMetres": 0.4,
+        "heightRecipe": "engraved-patina",
+        "reliefBands": { "fineCm": 1, "mediumCm": 4, "broadCm": 15 },
+        "edgeWear": 0.25
+      },
+      "localOverrides": [
+        { "id": "top_edge_polish", "region": "top_plate_metal", "changes": { "roughness": 0.14 } }
+      ]
+    },
+    {
+      "id": "vulcanite_leather",
+      "family": "leather",
+      "referencePriorId": "leather.pebbled-grip",
+      "baseColor": "#232120",
+      "roughness": 0.68,
+      "metalness": 0.0,
+      "ior": 1.48,
+      "sheen": 0.12,
+      "lightingUnknown": false,
+      "specularAA": true,
+      "shapedSurface": {
+        "tileMetres": 0.25,
+        "heightRecipe": "pebbled-leather-grain",
+        "reliefBands": { "fineCm": 0.5, "mediumCm": 2, "broadCm": 8 },
+        "cavityDirt": 0.2
+      }
+    },
+    {
+      "id": "anodized_black_barrel",
+      "family": "painted-metal",
+      "baseColor": "#1d2024",
+      "roughness": 0.34,
+      "metalness": 0.15,
+      "ior": 1.5,
+      "clearcoat": 0.2,
+      "clearcoatRoughness": 0.3,
+      "lightingUnknown": false,
+      "specularAA": true
+    },
+    {
+      "id": "optical_lens_glass",
+      "family": "glass",
+      "baseColor": "#e7f3fa",
+      "roughness": 0.03,
+      "metalness": 0.0,
+      "ior": 1.52,
+      "transmission": 0.94,
+      "lightingUnknown": false,
+      "specularAA": true
+    }
+  ],
+  "parts": [
+    {
+      "id": "camera_root",
+      "parentId": null,
+      "name": "CameraRoot",
+      "role": "container",
+      "level": "macro",
+      "topologyClass": "material-only",
+      "geometryTier": "T0-primitive",
+      "primitive": "box",
+      "materialId": "brushed_chrome",
+      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "chassis_grip_shell",
+      "parentId": "camera_root",
+      "name": "ChassisGrip",
+      "role": "main wrapped body grip",
+      "level": "macro",
+      "topologyClass": "continuous-sculpt",
+      "geometryTier": "T4-field",
+      "primitive": "variable-loft",
+      "materialId": "vulcanite_leather",
+      "transform": { "position": [0, 0.036, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "runtimeAction": { "sockets": ["tripod_mount", "hotshoe_mount"] }
+    },
+    {
+      "id": "top_plate_metal",
+      "parentId": "chassis_grip_shell",
+      "name": "TopDeckPlate",
+      "role": "machined chrome top deck",
+      "level": "macro",
+      "topologyClass": "continuous-sculpt",
+      "geometryTier": "T4-field",
+      "primitive": "variable-loft",
+      "materialId": "brushed_chrome",
+      "transform": { "position": [0, 0.034, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "attachment": { "contactType": "butt", "gapTolerance": 0.005 },
+      "runtimeAction": { "destructionGroup": "top_controls" }
+    },
+    {
+      "id": "viewfinder_recess",
+      "parentId": "top_plate_metal",
+      "name": "ViewfinderPocket",
+      "role": "recessed viewfinder cavity",
+      "level": "meso",
+      "topologyClass": "implicit",
+      "geometryTier": "T4-field",
+      "primitive": "sdf-implicit",
+      "materialId": "anodized_black_barrel",
+      "transform": { "position": [-0.036, 0.002, 0.015], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "geometryDescriptor": {
+        "sdfOps": [
+          { "op": "union", "shape": "box", "size": [0.024, 0.018, 0.014] },
+          { "op": "subtract", "shape": "box", "size": [0.018, 0.012, 0.012] }
+        ]
+      },
+      "localFeatures": [
+        { "id": "optical_cavity", "kind": "hole", "sizeMeters": 0.018 }
+      ]
+    },
+    {
+      "id": "lens_barrel_outer",
+      "parentId": "chassis_grip_shell",
+      "name": "LensBarrel",
+      "role": "primary optical barrel",
+      "level": "macro",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T1-parametric",
+      "primitive": "lathe",
+      "materialId": "anodized_black_barrel",
+      "transform": { "position": [0.005, -0.004, 0.025], "rotation": [1.5708, 0, 0], "scale": [1, 1, 1] },
+      "runtimeAction": { "pivot": [0, 0, 0], "sockets": ["filter_thread"] }
+    },
+    {
+      "id": "lens_front_element",
+      "parentId": "lens_barrel_outer",
+      "name": "LensFrontGlass",
+      "role": "convex multi-coated front glass element",
+      "level": "meso",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T0-primitive",
+      "primitive": "ellipsoid",
+      "materialId": "optical_lens_glass",
+      "transform": { "position": [0, 0.026, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "shutter_dial",
+      "parentId": "top_plate_metal",
+      "name": "ShutterDial",
+      "role": "knurled shutter speed dial",
+      "level": "micro",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T1-parametric",
+      "primitive": "cylinder",
+      "materialId": "brushed_chrome",
+      "transform": { "position": [0.032, 0.014, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "localFeatures": [
+        { "id": "knurl_bevel", "kind": "ridge", "sizeMeters": 0.002 }
+      ],
+      "runtimeAction": { "pivot": [0, 0, 0], "destructionGroup": "top_controls" }
+    },
+    {
+      "id": "strap_eyelet-l",
+      "parentId": "chassis_grip_shell",
+      "name": "StrapEyeletLeft",
+      "role": "left machined strap lug",
+      "level": "micro",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T0-primitive",
+      "primitive": "torus",
+      "materialId": "brushed_chrome",
+      "transform": { "position": [-0.072, 0.016, 0], "rotation": [0, 1.5708, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "strap_eyelet-r",
+      "parentId": "chassis_grip_shell",
+      "name": "StrapEyeletRight",
+      "role": "right machined strap lug",
+      "level": "micro",
+      "topologyClass": "assembled-solid",
+      "geometryTier": "T0-primitive",
+      "primitive": "torus",
+      "materialId": "brushed_chrome",
+      "transform": { "position": [0.072, 0.016, 0], "rotation": [0, -1.5708, 0], "scale": [1, 1, 1] }
+    }
+  ]
+}

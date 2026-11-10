@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://threejsworld.local/schemas/s3s-world.v2.schema.json",
+  "title": "ThreeJSWorld Unified Structured 3D World Spec (S3S-World v2)",
+  "description": "Fuses img2threejs ObjectSculptSpec/S3S, solstice .species/.weather & Surface::shaped PBR, ez-tree TreeOptions, vegetation pure-data LODs, and threejs-nanites Cluster DAG metadata.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "targetName",
+    "suitability",
+    "frame",
+    "subject",
+    "parts",
+    "materials"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "s3s-world.v2"
+    },
+    "targetName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "suitability": {
+      "type": "string",
+      "enum": ["pass", "conditional", "reject"]
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "inputMode": {
+          "type": "string",
+          "enum": ["image-reference", "glb-assisted", "text-grammar", "procedural-preset"]
+        },
+        "referenceHashes": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "specHash": { "type": "string" },
+        "sealed": { "type": "boolean" }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "required": ["unit", "up", "forward", "handedness"],
+      "properties": {
+        "unit": { "type": "string", "enum": ["meter", "model-height-1"] },
+        "up": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+        "forward": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+        "handedness": { "const": "right-handed" },
+        "planetRadiusMeters": { "type": "number", "minimum": 0 },
+        "referenceCameras": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["viewId", "azimuthDeg", "elevationDeg", "fovEvidence"],
+            "properties": {
+              "viewId": { "type": "string" },
+              "azimuthDeg": { "type": "number" },
+              "elevationDeg": { "type": "number" },
+              "fovDeg": { "type": ["number", "null"] },
+              "fovEvidence": {
+                "type": "string",
+                "enum": ["solved", "assumed", "ambiguous-with-part-inflation"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "required": ["primaryDomain", "primaryType", "complexityTier"],
+      "properties": {
+        "primaryDomain": {
+          "type": "string",
+          "enum": ["object", "character", "botanical", "architecture", "environment", "hybrid"]
+        },
+        "primaryType": { "type": "string", "minLength": 1 },
+        "complexityTier": {
+          "type": "string",
+          "enum": ["simple", "moderate", "complex", "ultra-complex"]
+        },
+        "qualityContract": {
+          "type": "object",
+          "required": ["definitionOfDone", "targetTriangles", "targetMinDetails"],
+          "properties": {
+            "definitionOfDone": { "type": "string", "minLength": 8 },
+            "targetTriangles": { "type": "integer", "minimum": 1 },
+            "targetMinDetails": { "type": "integer", "minimum": 0 },
+            "requiredViewpoints": { "type": "array", "items": { "type": "string" } },
+            "blockingFailureModes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "anatomy": {
+          "type": "object",
+          "properties": {
+            "source": { "type": "string", "enum": ["measured", "canon-table"] },
+            "styleHeads": { "type": "number", "minimum": 1.5, "maximum": 10.0 },
+            "proportions": { "type": "object" },
+            "faceLandmarks": { "type": "object" }
+          }
+        },
+        "hairProfile": {
+          "type": "object",
+          "properties": {
+            "scalpComponentId": { "type": "string" },
+            "representationTier": { "type": "string", "enum": ["shell", "masses", "locks"] },
+            "masses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "scalpUvRoot", "primitive"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "scalpUvRoot": { "type": "array", "minItems": 2, "maxItems": 2 },
+                  "primitive": { "type": "string" },
+                  "uncalibrated": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "detailInventory": {
+          "type": "object",
+          "properties": {
+            "scanMethod": { "type": "string" },
+            "targetMinDetails": { "type": "integer", "minimum": 0 },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "kind", "affects", "mapsTo"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1 },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "gloss", "bevel", "fastener", "linework", "contour",
+                      "seam", "stitch", "stain", "scratch", "chip",
+                      "decal", "emissive", "hole", "groove", "ridge"
+                    ]
+                  },
+                  "description": { "type": "string" },
+                  "scale": { "type": "string", "enum": ["macro", "meso", "micro"] },
+                  "affects": { "type": "string", "enum": ["geometry", "material", "both"] },
+                  "mapsTo": {
+                    "type": "object",
+                    "required": ["type", "ref"],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["component.localFeature", "material.localOverride"]
+                      },
+                      "ref": { "type": "string", "minLength": 1 }
+                    }
+                  },
+                  "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "unknownsToResolve": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "parentId", "name", "role", "level",
+          "topologyClass", "geometryTier", "primitive", "materialId", "transform"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "parentId": { "type": ["string", "null"] },
+          "name": { "type": "string", "minLength": 1 },
+          "role": { "type": "string", "minLength": 1 },
+          "level": { "type": "string", "enum": ["macro", "meso", "micro"] },
+          "topologyClass": {
+            "type": "string",
+            "enum": [
+              "assembled-solid",
+              "continuous-sculpt",
+              "conforming-shell",
+              "open-shell",
+              "surface-relief",
+              "fiber-strand",
+              "implicit",
+              "material-only"
+            ]
+          },
+          "topologyRationale": { "type": "string" },
+          "geometryTier": {
+            "type": "string",
+            "enum": ["T0-primitive", "T1-parametric", "T2-sweep", "T3-proceduralSurface", "T4-field", "T5-fittedBuffer"]
+          },
+          "primitive": {
+            "type": "string",
+            "enum": [
+              "box", "sphere", "ellipsoid", "cylinder", "cone", "capsule", "torus",
+              "tube", "lathe", "extrude", "ground-blade", "curve-sweep", "tapered-sweep",
+              "variable-loft", "open-membrane", "up-normal-cards", "convex-rock",
+              "botanical-skeleton", "sdf-implicit", "instanced-cluster", "fitted-buffer"
+            ]
+          },
+          "materialId": { "type": "string", "minLength": 1 },
+          "transform": {
+            "type": "object",
+            "required": ["position", "rotation", "scale"],
+            "properties": {
+              "position": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+              "rotation": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+              "scale": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } }
+            }
+          },
+          "geometryDescriptor": { "type": "object" },
+          "botanicalGrammar": { "type": "object" },
+          "attachment": {
+            "type": "object",
+            "properties": {
+              "parentSocket": { "type": "string" },
+              "contactType": { "type": "string", "enum": ["butt", "overlap", "socket", "embed", "hinge"] },
+              "embedDepth": { "type": "number", "minimum": 0 },
+              "gapTolerance": { "type": "number", "minimum": 0 }
+            }
+          },
+          "standProud": {
+            "type": "object",
+            "required": ["againstComponentId", "clearance", "maxPush"],
+            "properties": {
+              "againstComponentId": { "type": "string" },
+              "clearance": { "type": "number", "exclusiveMinimum": 0 },
+              "maxPush": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "localFeatures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "kind"],
+              "properties": {
+                "id": { "type": "string" },
+                "kind": { "type": "string" },
+                "placement": { "type": "string" },
+                "size": { "type": "number" }
+              }
+            }
+          },
+          "confidence": {
+            "type": "object",
+            "properties": {
+              "shape": {
+                "type": "object",
+                "properties": {
+                  "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "y": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "z": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              },
+              "occluded": { "type": "boolean" }
+            }
+          },
+          "explodeWithParent": { "type": "boolean" },
+          "ablationGroup": { "type": "string" },
+          "runtimeAction": {
+            "type": "object",
+            "properties": {
+              "animationRole": { "type": "string" },
+              "pivot": { "type": "array", "minItems": 3, "maxItems": 3 },
+              "sockets": { "type": "array", "items": { "type": "string" } },
+              "colliderKind": { "type": "string", "enum": ["none", "trunk-cylinder", "convex-hull", "box", "sphere"] },
+              "destructionGroup": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "materials": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "family", "baseColor", "roughness", "metalness", "lightingUnknown"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "family": { "type": "string", "minLength": 1 },
+          "referencePriorId": { "type": "string" },
+          "baseColor": { "type": "string" },
+          "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "metalness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "ior": { "type": "number", "minimum": 1.0, "maximum": 2.333 },
+          "clearcoat": { "type": "number", "minimum": 0, "maximum": 1 },
+          "clearcoatRoughness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "sheen": { "type": "number", "minimum": 0, "maximum": 1 },
+          "anisotropy": { "type": "number", "minimum": 0, "maximum": 1 },
+          "transmission": { "type": "number", "minimum": 0, "maximum": 1 },
+          "doubleSided": { "type": "boolean" },
+          "upNormalCards": { "type": "boolean" },
+          "alphaTest": { "type": "number", "minimum": 0, "maximum": 1 },
+          "coveragePreservingMipmaps": { "type": "boolean" },
+          "specularAA": { "type": "boolean" },
+          "lightingUnknown": { "type": "boolean" },
+          "channelGating": {
+            "type": "object",
+            "properties": {
+              "roughness": { "type": "string", "enum": ["hard", "soft", "report-only"] },
+              "metalness": { "type": "string", "enum": ["hard", "soft", "report-only"] }
+            }
+          },
+          "shapedSurface": {
+            "type": "object",
+            "properties": {
+              "tileMetres": { "type": "number", "exclusiveMinimum": 0 },
+              "heightRecipe": { "type": "string" },
+              "reliefBands": {
+                "type": "object",
+                "properties": {
+                  "fineCm": { "type": "number" },
+                  "mediumCm": { "type": "number" },
+                  "broadCm": { "type": "number" }
+                }
+              },
+              "cavityDirt": { "type": "number", "minimum": 0, "maximum": 1 },
+              "edgeWear": { "type": "number", "minimum": 0, "maximum": 1 },
+              "mossCoverage": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "localOverrides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "region", "changes"],
+              "properties": {
+                "id": { "type": "string" },
+                "region": { "type": "string" },
+                "changes": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lodAndWorld": {
+      "type": "object",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["single-mesh", "discrete-lod0-4", "cluster-dag-nanite"]
+        },
+        "clusterSizeTris": { "type": "integer", "enum": [64, 128] },
+        "errorPropagation": { "const": "max" },
+        "foliageCoverageDirs": { "type": "integer", "minimum": 4 },
+        "impostor": {
+          "type": "object",
+          "properties": {
+            "elevationsDeg": { "type": "array", "items": { "type": "number" } },
+            "unlitAlbedoPlusNormal": { "type": "boolean" },
+            "switchThresholdPx": { "type": "number", "minimum": 2 }
+          }
+        },
+        "atmosphereAndGi": {
+          "type": "object",
+          "properties": {
+            "skyModel": { "type": "string", "enum": ["none", "hillaire-2020"] },
+            "clouds": { "type": "string", "enum": ["none", "volumetric-ranked"] },
+            "giMode": { "type": "string", "enum": ["none", "pmrem-only", "voxel-clipmap-ssgi"] }
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "featureReviewTargets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "priority", "minScore"],
+            "properties": {
+              "id": { "type": "string" },
+              "priority": { "type": "string", "enum": ["critical", "important"] },
+              "minScore": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "reviewHistory": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    }
+  }
+}

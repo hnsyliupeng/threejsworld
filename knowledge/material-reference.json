@@ -1,0 +1,299 @@
+{
+  "schemaVersion": "threejsworld.material-reference.v2",
+  "rendererContract": {
+    "engine": "three.js",
+    "workflow": "metallic-roughness",
+    "defaultMaterial": "MeshPhysicalMaterial",
+    "colorMaps": ["map", "emissiveMap", "sheenColorMap", "specularColorMap"],
+    "colorMapColorSpace": "SRGBColorSpace",
+    "dataMaps": [
+      "roughnessMap",
+      "metalnessMap",
+      "normalMap",
+      "aoMap",
+      "bumpMap",
+      "displacementMap",
+      "clearcoatMap",
+      "clearcoatRoughnessMap",
+      "transmissionMap",
+      "thicknessMap",
+      "anisotropyMap"
+    ],
+    "dataMapColorSpace": "NoColorSpace",
+    "legalRanges": {
+      "metalness": [0.0, 1.0],
+      "roughness": [0.0, 1.0],
+      "clearcoat": [0.0, 1.0],
+      "clearcoatRoughness": [0.0, 1.0],
+      "sheen": [0.0, 1.0],
+      "transmission": [0.0, 1.0],
+      "ior": [1.0, 2.333],
+      "anisotropy": [0.0, 1.0]
+    },
+    "hardPhysicsRules": [
+      "Intact painted/coated metal MUST have metalness near 0.0 (<= 0.15) on paint; exposed chips use separate region or metalness mask.",
+      "Do not classify material from color alone (black fabric/leather/rubber/plastic share albedo).",
+      "Clear glass MUST use transmission > 0.5 with opacity = 1.0 and thickness > 0, never alpha transparency air.",
+      "When lightingUnknown is true, roughness and metalness MUST be marked report-only in channelGating.",
+      "Vegetation cutout materials MUST NOT use DoubleSide (causes inverted dark undersides); use upNormalCards + FrontSide + alphaTest + coveragePreservingMipmaps."
+    ]
+  },
+  "materials": {
+    "metal.steel.polished": {
+      "family": "metal",
+      "metalness": 1.0,
+      "roughness": 0.14,
+      "roughnessRange": [0.05, 0.25],
+      "ior": 1.5,
+      "anisotropy": 0.0,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.5, "heightRecipe": "micro-polish", "edgeWear": 0.1, "cavityDirt": 0.05 },
+      "essentialEvidence": ["environment-reflection", "grazing"]
+    },
+    "metal.steel.brushed": {
+      "family": "metal",
+      "metalness": 1.0,
+      "roughness": 0.35,
+      "roughnessRange": [0.22, 0.52],
+      "anisotropy": 0.85,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.4, "heightRecipe": "directional-brushed", "edgeWear": 0.35, "cavityDirt": 0.15 },
+      "essentialEvidence": ["grazing", "environment-reflection"]
+    },
+    "metal.brass.aged": {
+      "family": "metal",
+      "metalness": 1.0,
+      "roughness": 0.34,
+      "roughnessRange": [0.20, 0.60],
+      "anisotropy": 0.25,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.5, "heightRecipe": "engraved-patina", "edgeWear": 0.55, "cavityDirt": 0.45 },
+      "essentialEvidence": ["environment-reflection", "grazing"]
+    },
+    "metal.gold.polished": {
+      "family": "metal",
+      "metalness": 1.0,
+      "roughness": 0.20,
+      "roughnessRange": [0.10, 0.35],
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.5, "heightRecipe": "micro-polish", "edgeWear": 0.15, "cavityDirt": 0.05 },
+      "essentialEvidence": ["environment-reflection"]
+    },
+    "metal.copper.oxidized": {
+      "family": "metal",
+      "metalness": 0.85,
+      "roughness": 0.42,
+      "roughnessRange": [0.22, 0.80],
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.8, "heightRecipe": "pitted-oxide", "edgeWear": 0.60, "cavityDirt": 0.55 },
+      "essentialEvidence": ["albedo-unlit", "grazing"]
+    },
+    "coated.paint.enamel": {
+      "family": "painted-metal",
+      "metalness": 0.0,
+      "roughness": 0.42,
+      "roughnessRange": [0.20, 0.65],
+      "clearcoat": 0.75,
+      "clearcoatRoughness": 0.12,
+      "ior": 1.5,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 1.0, "heightRecipe": "orange-peel-coat", "edgeWear": 0.20, "cavityDirt": 0.15 },
+      "essentialEvidence": ["grazing", "environment-reflection"]
+    },
+    "leather.matte.worn": {
+      "family": "leather",
+      "metalness": 0.0,
+      "roughness": 0.64,
+      "roughnessRange": [0.45, 0.85],
+      "clearcoat": 0.08,
+      "sheen": 0.12,
+      "ior": 1.48,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 0.4, "heightRecipe": "pebbled-leather-grain", "edgeWear": 0.55, "cavityDirt": 0.35 },
+      "essentialEvidence": ["grazing", "neutral-studio"]
+    },
+    "wood.unfinished": {
+      "family": "wood",
+      "metalness": 0.0,
+      "roughness": 0.74,
+      "roughnessRange": [0.55, 0.90],
+      "anisotropy": 0.15,
+      "ior": 1.5,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 1.0, "heightRecipe": "wood-grain-fibers", "edgeWear": 0.30, "cavityDirt": 0.40 },
+      "essentialEvidence": ["albedo-unlit", "grazing"]
+    },
+    "wood.varnished": {
+      "family": "wood",
+      "metalness": 0.0,
+      "roughness": 0.40,
+      "roughnessRange": [0.25, 0.60],
+      "clearcoat": 0.75,
+      "clearcoatRoughness": 0.15,
+      "ior": 1.52,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 1.0, "heightRecipe": "wood-grain-fibers", "edgeWear": 0.20, "cavityDirt": 0.15 },
+      "essentialEvidence": ["grazing", "environment-reflection"]
+    },
+    "stone.granite.weathered": {
+      "family": "stone",
+      "metalness": 0.0,
+      "roughness": 0.82,
+      "roughnessRange": [0.60, 0.95],
+      "ior": 1.52,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 2.5, "heightRecipe": "granite-cracks-moss", "edgeWear": 0.45, "cavityDirt": 0.55, "mossCoverage": 0.25 },
+      "essentialEvidence": ["neutral-studio", "grazing"]
+    },
+    "ceramic.terracotta.matte": {
+      "family": "ceramic",
+      "metalness": 0.0,
+      "roughness": 0.80,
+      "roughnessRange": [0.65, 0.92],
+      "ior": 1.5,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 1.5, "heightRecipe": "clay-pores", "edgeWear": 0.25, "cavityDirt": 0.40 },
+      "essentialEvidence": ["neutral-studio"]
+    },
+    "ceramic.glazed": {
+      "family": "ceramic",
+      "metalness": 0.0,
+      "roughness": 0.25,
+      "roughnessRange": [0.08, 0.40],
+      "clearcoat": 0.75,
+      "clearcoatRoughness": 0.08,
+      "ior": 1.5,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 1.0, "heightRecipe": "micro-polish", "edgeWear": 0.10, "cavityDirt": 0.05 },
+      "essentialEvidence": ["environment-reflection", "grazing"]
+    },
+    "plastic.glossy": {
+      "family": "plastic",
+      "metalness": 0.0,
+      "roughness": 0.28,
+      "roughnessRange": [0.12, 0.42],
+      "clearcoat": 0.20,
+      "ior": 1.5,
+      "specularAA": false,
+      "essentialEvidence": ["grazing", "neutral-studio"]
+    },
+    "plastic.matte": {
+      "family": "plastic",
+      "metalness": 0.0,
+      "roughness": 0.68,
+      "roughnessRange": [0.50, 0.85],
+      "ior": 1.5,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 0.3, "heightRecipe": "stipple-molded", "edgeWear": 0.15, "cavityDirt": 0.10 },
+      "essentialEvidence": ["grazing"]
+    },
+    "rubber.grip": {
+      "family": "rubber",
+      "metalness": 0.0,
+      "roughness": 0.88,
+      "roughnessRange": [0.75, 0.96],
+      "ior": 1.48,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 0.2, "heightRecipe": "stipple-molded", "edgeWear": 0.20, "cavityDirt": 0.30 },
+      "essentialEvidence": ["grazing"]
+    },
+    "fabric.woven.matte": {
+      "family": "fabric",
+      "metalness": 0.0,
+      "roughness": 0.86,
+      "roughnessRange": [0.72, 0.96],
+      "sheen": 0.65,
+      "ior": 1.45,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 0.25, "heightRecipe": "woven-threads", "edgeWear": 0.15, "cavityDirt": 0.20 },
+      "essentialEvidence": ["grazing", "neutral-studio"]
+    },
+    "fabric.silk.satin": {
+      "family": "fabric",
+      "metalness": 0.0,
+      "roughness": 0.32,
+      "roughnessRange": [0.20, 0.48],
+      "sheen": 0.85,
+      "anisotropy": 0.45,
+      "ior": 1.48,
+      "specularAA": true,
+      "essentialEvidence": ["grazing"]
+    },
+    "human.skin": {
+      "family": "skin",
+      "metalness": 0.0,
+      "roughness": 0.52,
+      "roughnessRange": [0.35, 0.70],
+      "clearcoat": 0.10,
+      "ior": 1.4,
+      "specularAA": false,
+      "shapedSurfaceDefault": { "tileMetres": 0.15, "heightRecipe": "skin-pores", "edgeWear": 0.0, "cavityDirt": 0.05 },
+      "essentialEvidence": ["neutral-studio", "grazing"]
+    },
+    "hair.human.code-only": {
+      "family": "hair",
+      "metalness": 0.0,
+      "roughness": 0.44,
+      "roughnessRange": [0.28, 0.62],
+      "sheen": 0.55,
+      "anisotropy": 0.72,
+      "ior": 1.54,
+      "specularAA": true,
+      "essentialEvidence": ["grazing"]
+    },
+    "botanical.bark.furrowed": {
+      "family": "bark",
+      "metalness": 0.0,
+      "roughness": 0.88,
+      "roughnessRange": [0.75, 0.96],
+      "ior": 1.5,
+      "specularAA": true,
+      "shapedSurfaceDefault": { "tileMetres": 0.6, "heightRecipe": "vertical-bark-furrows", "edgeWear": 0.25, "cavityDirt": 0.60 },
+      "essentialEvidence": ["neutral-studio", "grazing"]
+    },
+    "botanical.foliage.cutout": {
+      "family": "leaf",
+      "metalness": 0.0,
+      "roughness": 0.68,
+      "roughnessRange": [0.45, 0.85],
+      "ior": 1.05,
+      "specularIntensity": 0.015,
+      "alphaTest": 0.45,
+      "upNormalCards": true,
+      "coveragePreservingMipmaps": true,
+      "doubleSided": false,
+      "specularAA": true,
+      "essentialEvidence": ["albedo-unlit", "backlight-transmission"]
+    },
+    "glass.clear": {
+      "family": "glass",
+      "metalness": 0.0,
+      "roughness": 0.05,
+      "roughnessRange": [0.01, 0.14],
+      "transmission": 1.0,
+      "ior": 1.5,
+      "specularAA": false,
+      "essentialEvidence": ["backlight-transmission", "environment-reflection"]
+    },
+    "glass.frosted": {
+      "family": "glass",
+      "metalness": 0.0,
+      "roughness": 0.52,
+      "roughnessRange": [0.35, 0.72],
+      "transmission": 0.85,
+      "ior": 1.5,
+      "specularAA": true,
+      "essentialEvidence": ["backlight-transmission"]
+    },
+    "water.pond": {
+      "family": "water",
+      "metalness": 0.0,
+      "roughness": 0.04,
+      "roughnessRange": [0.01, 0.15],
+      "transmission": 0.92,
+      "ior": 1.333,
+      "specularAA": true,
+      "essentialEvidence": ["environment-reflection", "backlight-transmission"]
+    }
+  }
+}
