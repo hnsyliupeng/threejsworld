@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve( path.dirname( fileURLToPath( import.meta.url ) ), '..' );
-const OUT_DIR = path.join( ROOT, '.threejsworld', 'screenshots' );
+const OUT_DIR = path.join( ROOT, 'screenshots' );
 const PORT = Number( process.env.PORT || 4173 );
 const BASE = `http://127.0.0.1:${ PORT }/examples/botanical_inspector.html?pause=1`;
 
@@ -71,6 +71,60 @@ async function run() {
 		console.log( `Captured ${ shot.name }.png -> ${ statsText }` );
 
 	}
+
+	// Render labeled 2x5 contact sheet overview of all 10 screenshots
+	const tileB64List = SHOTS.map( ( s ) => ( {
+		label: s.name,
+		dataUrl: 'data:image/png;base64,' + fs.readFileSync( path.join( OUT_DIR, `${ s.name }.png` ) ).toString( 'base64' ),
+	} ) );
+	const sheetB64 = await page.evaluate( async ( tiles ) => {
+
+		const cols = 2;
+		const rows = Math.ceil( tiles.length / cols );
+		const tw = 640;
+		const th = 426;
+		const pad = 16;
+		const header = 32;
+		const canvas = document.createElement( 'canvas' );
+		canvas.width = cols * tw + ( cols + 1 ) * pad;
+		canvas.height = rows * ( th + header ) + ( rows + 1 ) * pad;
+		const ctx = canvas.getContext( '2d' );
+		ctx.fillStyle = '#0d1117';
+		ctx.fillRect( 0, 0, canvas.width, canvas.height );
+		ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+		ctx.textBaseline = 'middle';
+
+		for ( let i = 0; i < tiles.length; i ++ ) {
+
+			const col = i % cols;
+			const row = Math.floor( i / cols );
+			const x = pad + col * ( tw + pad );
+			const y = pad + row * ( th + header + pad );
+
+			ctx.fillStyle = '#161b22';
+			ctx.fillRect( x, y, tw, header + th );
+			ctx.strokeStyle = '#30363d';
+			ctx.lineWidth = 2;
+			ctx.strokeRect( x, y, tw, header + th );
+
+			ctx.fillStyle = '#7ee787';
+			ctx.fillText( tiles[ i ].label, x + 12, y + header / 2 );
+
+			const img = new Image();
+			img.src = tiles[ i ].dataUrl;
+			await new Promise( ( res ) => {
+
+				img.onload = res;
+
+			} );
+			ctx.drawImage( img, x, y + header, tw, th );
+
+		}
+		return canvas.toDataURL( 'image/png' ).split( ',' )[ 1 ];
+
+	}, tileB64List );
+	fs.writeFileSync( path.join( OUT_DIR, '00_all_screenshots_overview.png' ), Buffer.from( sheetB64, 'base64' ) );
+	console.log( 'Captured 00_all_screenshots_overview.png (2x5 labeled overview)' );
 
 	await browser.close();
 	console.log( `Warnings: ${ consoleWarnings.length }, Errors: ${ consoleErrors.length }` );

@@ -111,7 +111,7 @@ npm install --no-package-lock
 # Start zero-bundler dev server on 0.0.0.0:4173 (/examples/botanical_inspector.html)
 npm run serve
 
-# Run automated 10-shot headless WebGL2 visual audit (writes .threejsworld/screenshots/*.png)
+# Run automated 10-shot headless WebGL2 visual audit (writes screenshots/*.png + 00_all_screenshots_overview.png)
 node tools/capture_screenshots.mjs
 ```
 
