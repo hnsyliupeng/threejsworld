@@ -86,6 +86,17 @@ export interface LilyPadSpec {
 	yaw: number;
 }
 
+export interface FernPlacementSpec {
+	id: string;
+	x: number;
+	y: number;
+	z: number;
+	scale: number;
+	yaw: number;
+	radius: number;
+	seed: number;
+}
+
 export interface GardenLayoutPlan {
 	waterLevel: number;
 	lakeCenter: [ number, number ];
@@ -98,8 +109,12 @@ export interface GardenLayoutPlan {
 	rockeryStones: RockeryStoneSpec[];
 	shoreBoulders: RockeryStoneSpec[];
 	trees: TreePlacementSpec[];
+	distantTrees: TreePlacementSpec[];
+	shrubs: Array<{ x: number; y: number; z: number; scale: number; yaw: number; seed: number }>;
+	ferns: FernPlacementSpec[];
 	flowers: FlowerPlacementSpec[];
 	grassClumps: GrassPlacementSpec[];
+	meadowTufts: GrassPlacementSpec[];
 	lilyPads: LilyPadSpec[];
 	reeds: Array<{ x: number; y: number; z: number; scale: number; yaw: number }>;
 	colliders: CircleCollider2D[];
@@ -234,11 +249,11 @@ export function sampleGardenTerrainHeight( x: number, z: number ): number {
 		? 0.24 * Math.pow( Math.max( 0, Math.cos( ( dRock / 3.0 ) * Math.PI * 0.5 ) ), 1.4 )
 		: 0;
 
-	// Outer rolling lawn hill outside main courtyard (suppress inside lake/path)
+	// Outer rolling forested hills outside main courtyard (suppress inside lake/path)
 	const r = Math.hypot( x, z );
-	const outerFactor = Math.min( 1, Math.max( 0, ( r - 6.8 ) / 7.5 ) );
-	const microRelief = ( periodicFbm2D( ( x + 30 ) / 20, ( z + 30 ) / 20, 4, 3, 19 ) - 0.5 ) * 0.10;
-	const rolling = ( Math.sin( x * 0.18 ) * Math.cos( z * 0.16 ) * 0.65 + 0.18 ) * outerFactor;
+	const outerFactor = Math.min( 1, Math.max( 0, ( r - 7.5 ) / 10.0 ) );
+	const microRelief = ( periodicFbm2D( ( x + 30 ) / 20, ( z + 30 ) / 20, 4, 3, 19 ) - 0.5 ) * 0.08;
+	const rolling = ( Math.sin( x * 0.14 ) * Math.cos( z * 0.12 ) * 1.45 + 0.85 * Math.max( 0, r - 12 ) / 18 ) * outerFactor;
 
 	return lakeCarve + rockMound + rolling + microRelief * ( lsd > 0.3 ? 1 : 0.2 );
 
@@ -260,17 +275,22 @@ export function sampleGardenTerrainNormal( x: number, z: number ): [ number, num
 }
 
 /**
- * Generates an organic multi-faceted bluestone/slate flagstone slab mesh
- * with beveled top edge and embedded bottom skirt (outward winding verified).
+ * Generates a natural irregular cleaved split-slate stepping stone slab mesh
+ * (elongated varied polygon silhouette with beveled edges & embedded skirt, outward winding verified).
  */
 export function buildFlagstoneSlabGeometry( radius: number, thickness: number, seed: number ): MeshBuffers {
 
 	const rng = new Mulberry32( seed );
-	const sides = 8;
+	const sides = 12;
+	const aspectX = rng.range( 1.06, 1.30 );
+	const aspectZ = rng.range( 0.68, 0.86 );
 	const radii: number[] = [];
 	for ( let i = 0; i < sides; i ++ ) {
 
-		radii.push( radius * rng.range( 0.80, 1.06 ) );
+		const th = ( i / sides ) * Math.PI * 2;
+		// Rectangular-organic cleaved stone silhouette (flatter sides + natural chipped corners)
+		const boxBoost = 1.0 / Math.max( Math.abs( Math.cos( th ) ) * 0.85, Math.abs( Math.sin( th ) ) * 0.92, 0.72 );
+		radii.push( radius * Math.min( 1.15, boxBoost * rng.range( 0.72, 0.96 ) ) );
 
 	}
 
@@ -280,14 +300,14 @@ export function buildFlagstoneSlabGeometry( radius: number, thickness: number, s
 	const col: number[] = [];
 	const idx: number[] = [];
 
-	// 4 vertical rings: bottom skirt (-0.045), mid side (0.0), bevel edge (thickness*0.82), flat top inner (thickness)
-	const ringHeights = [ - 0.045, 0.0, thickness * 0.78, thickness ];
-	const ringScales = [ 1.04, 1.0, 0.96, 0.88 ];
+	// 4 vertical rings: bottom skirt (-0.05), mid side (0.0), bevel edge (thickness*0.80), flat cleaved top (thickness)
+	const ringHeights = [ - 0.050, 0.0, thickness * 0.76, thickness ];
+	const ringScales = [ 1.04, 1.0, 0.97, 0.90 ];
 	const ringColors: Array<[ number, number, number ]> = [
-		[ 0.56, 0.56, 0.54 ],
-		[ 0.72, 0.72, 0.70 ],
-		[ 0.90, 0.90, 0.88 ],
-		[ 0.98, 0.98, 0.96 ],
+		[ 0.44, 0.45, 0.42 ],
+		[ 0.62, 0.64, 0.62 ],
+		[ 0.84, 0.86, 0.84 ],
+		[ 0.94, 0.96, 0.94 ],
 	];
 
 	const stride = sides + 1;
@@ -301,11 +321,11 @@ export function buildFlagstoneSlabGeometry( radius: number, thickness: number, s
 			const k = s % sides;
 			const th = ( k / sides ) * Math.PI * 2;
 			const rad = radii[ k ]! * sc;
-			const x = Math.cos( th ) * rad;
-			const z = Math.sin( th ) * rad;
-			const topJitter = r >= 2 ? ( rng.signed() * 0.002 ) : 0;
+			const x = Math.cos( th ) * rad * aspectX;
+			const z = Math.sin( th ) * rad * aspectZ;
+			const topCleavage = r >= 2 ? ( Math.sin( x * 9.0 + seed ) * 0.003 + rng.signed() * 0.002 ) : 0;
 
-			pos.push( x, y + topJitter, z );
+			pos.push( x, y + topCleavage, z );
 			if ( r === 3 ) {
 
 				nrm.push( 0, 1, 0 );
@@ -320,7 +340,7 @@ export function buildFlagstoneSlabGeometry( radius: number, thickness: number, s
 				nrm.push( Math.cos( th ), 0.1, Math.sin( th ) );
 
 			}
-			uv.push( 0.5 + x / ( radius * 2.2 ), 0.5 + z / ( radius * 2.2 ) );
+			uv.push( 0.5 + x / ( radius * 2.6 ), 0.5 + z / ( radius * 2.6 ) );
 			col.push( rc[ 0 ], rc[ 1 ], rc[ 2 ] );
 
 		}
@@ -448,19 +468,26 @@ export function buildStoneFountainGeometry( radialSegs = 40 ): {
 		const ny = nyRaw / nl;
 
 		const v = arcLen[ i ]! * 0.85;
-		const shade = p[ 2 ];
+		// Dark mossy underwater stone inside basin floors + warm sunlit buff travertine exterior
+		const isBowlFloor = i === 8 || i === 9 || i === 18 || i === 19;
+		const isWetZone = ( p[ 1 ] > - 0.14 && p[ 1 ] < 0.04 ) || ( i >= 5 && i <= 6 ) || ( i >= 16 && i <= 17 );
+		const shade = isBowlFloor ? 0.24 : ( 0.88 + 0.12 * p[ 2 ] ) * ( isWetZone ? 0.88 : 1.0 );
+		// Carved gadrooned fluting along basin bowls & baluster waist
+		const fluteAmp = ( i === 2 || i === 3 || i === 11 || i === 14 ) ? 0.022 : 0.0;
 
 		for ( let s = 0; s <= radialSegs; s ++ ) {
 
 			const u = s / radialSegs;
 			const th = u * Math.PI * 2;
+			const flute = fluteAmp * Math.cos( th * 20 );
+			const rad = p[ 0 ] + flute;
 			const ct = Math.cos( th );
 			const st = Math.sin( th );
 
-			pos.push( ct * p[ 0 ], p[ 1 ], st * p[ 0 ] );
+			pos.push( ct * rad, p[ 1 ], st * rad );
 			nrm.push( ct * nr, ny, st * nr );
 			uv.push( u * 2.0, v );
-			col.push( shade, shade * 0.99, shade * 0.96 );
+			col.push( shade, shade * 0.98, shade * 0.94 );
 
 		}
 
@@ -601,42 +628,56 @@ export function buildFountainWaterStreamsGeometry( lowerWaterY: number, upperWat
 
 	}
 
-	// Central plume: 8 delicate arcing jets spraying out of top finial into upper saucer
-	for ( let k = 0; k < 8; k ++ ) {
+	// Central plume: 12 delicate arcing jets spraying out of top finial into upper saucer
+	for ( let k = 0; k < 12; k ++ ) {
 
-		const ang = ( k / 8 ) * Math.PI * 2;
+		const ang = ( k / 12 ) * Math.PI * 2;
+		const spread = 0.25 + ( k % 3 ) * 0.045;
 		addParabolicArc(
 			[ Math.cos( ang ) * 0.015, nozzleTipY, Math.sin( ang ) * 0.015 ],
-			[ Math.cos( ang ) * 0.30, upperWaterY - 0.02, Math.sin( ang ) * 0.30 ],
-			nozzleTipY + 0.56,
+			[ Math.cos( ang ) * spread, upperWaterY - 0.01, Math.sin( ang ) * spread ],
+			nozzleTipY + 0.44 + ( k % 2 ) * 0.14,
+			0.008,
+			0.014,
+		);
+
+	}
+	// Central frothy vertical crown plume
+	for ( let k = 0; k < 6; k ++ ) {
+
+		const ang = ( k / 6 ) * Math.PI * 2 + 0.4;
+		addParabolicArc(
+			[ 0, nozzleTipY, 0 ],
+			[ Math.cos( ang ) * 0.12, upperWaterY, Math.sin( ang ) * 0.12 ],
+			nozzleTipY + 0.70,
 			0.012,
+			0.009,
+		);
+
+	}
+	// 16 weeping overflow streams spilling from upper saucer lip into lower pool
+	for ( let k = 0; k < 16; k ++ ) {
+
+		const ang = ( k / 16 ) * Math.PI * 2 + 0.12;
+		addParabolicArc(
+			[ Math.cos( ang ) * 0.45, upperWaterY + 0.03, Math.sin( ang ) * 0.45 ],
+			[ Math.cos( ang ) * 0.62, lowerWaterY - 0.02, Math.sin( ang ) * 0.62 ],
+			upperWaterY + 0.06,
+			0.011,
 			0.018,
 		);
 
 	}
-	// Secondary vertical central spire jet
-	for ( let k = 0; k < 4; k ++ ) {
+	// 20 fine lower-bowl spillover ribbons plunging directly into lake water (matching R02!)
+	for ( let k = 0; k < 20; k ++ ) {
 
-		const ang = ( k / 4 ) * Math.PI * 2 + 0.4;
+		const ang = ( k / 20 ) * Math.PI * 2 + 0.08;
 		addParabolicArc(
-			[ 0, nozzleTipY, 0 ],
-			[ Math.cos( ang ) * 0.14, upperWaterY, Math.sin( ang ) * 0.14 ],
-			nozzleTipY + 0.82,
-			0.015,
+			[ Math.cos( ang ) * 0.90, lowerWaterY + 0.06, Math.sin( ang ) * 0.90 ],
+			[ Math.cos( ang ) * 1.07, WATER_LEVEL - 0.04, Math.sin( ang ) * 1.07 ],
+			lowerWaterY + 0.08,
 			0.010,
-		);
-
-	}
-	// 10 weeping overflow arcs spilling from upper saucer lip into lower pool
-	for ( let k = 0; k < 10; k ++ ) {
-
-		const ang = ( k / 10 ) * Math.PI * 2 + 0.18;
-		addParabolicArc(
-			[ Math.cos( ang ) * 0.45, upperWaterY + 0.03, Math.sin( ang ) * 0.45 ],
-			[ Math.cos( ang ) * 0.61, lowerWaterY - 0.02, Math.sin( ang ) * 0.61 ],
-			upperWaterY + 0.07,
-			0.014,
-			0.022,
+			0.016,
 		);
 
 	}
@@ -657,48 +698,41 @@ export function buildFountainWaterStreamsGeometry( lowerWaterY: number, upperWat
  */
 export function buildScholarRockMesh( spec: RockeryStoneSpec ): MeshBuffers {
 
-	const base = buildWeatheredRock( spec.seed, spec.rx, 0.36, spec.mossCoverage, spec.detail );
+	const base = buildWeatheredRock( spec.seed, spec.rx, 0.42, spec.mossCoverage, spec.detail );
 	const scaleY = spec.ry / Math.max( 0.05, spec.rx );
 	const scaleZ = spec.rz / Math.max( 0.05, spec.rx );
 	const pos = base.positions;
 	const nrm = base.normals;
 	const col = base.colors!;
+	const isCrest = spec.tier === 'peak' || spec.tier === 'mid';
 
-	// Compute fractured planar cleavage facets & stratified karst overhangs for authentic 假山 look
+	// Sculpt natural vertical karst limestone spires & moss-catching step shelves (假山)
 	for ( let i = 0; i < pos.length; i += 3 ) {
 
 		const px = pos[ i ]!;
 		const py = pos[ i + 1 ]! * scaleY;
 		const pz = pos[ i + 2 ]! * scaleZ;
 
-		// Angular cleaved rock planes & karst terrace ribs
-		const strata = Math.sin( py * 12.5 + spec.seed * 0.7 ) * 0.095;
-		const cleaveA = Math.abs( Math.sin( px * 4.2 + pz * 3.1 + spec.seed ) ) * 0.14;
-		const cleaveB = Math.cos( px * 2.9 - py * 3.6 + spec.seed * 1.3 ) * 0.10;
-		const lean = spec.tier === 'peak' ? Math.max( 0, py ) * 0.22 : 0;
+		const ang = Math.atan2( pz, px );
+		const vertFlute = 0.13 * Math.sin( ang * 5.0 + spec.seed * 0.7 ) + 0.08 * Math.abs( Math.cos( ang * 7.0 - py * 1.4 ) );
+		const ridge = 0.09 * Math.abs( Math.sin( px * 3.6 + pz * 2.8 + spec.seed ) );
+		const vertCleftA = Math.exp( - Math.pow( Math.sin( px * 4.4 + pz * 2.2 + spec.seed ), 2 ) * 9.0 ) * 0.18;
+		const vertCleftB = Math.exp( - Math.pow( Math.cos( pz * 4.8 - px * 1.9 + spec.seed * 1.7 ), 2 ) * 9.0 ) * 0.15;
+		const fissure = vertCleftA + vertCleftB;
+		const radialMod = Math.max( 0.62, Math.min( 1.28, 1 + vertFlute + ridge - fissure * 0.55 ) );
+		const lean = isCrest ? Math.max( 0, py ) * ( spec.tier === 'peak' ? 0.14 : 0.07 ) : 0;
+		const spireTaper = spec.tier === 'peak' && py > 0 ? Math.max( 0.60, 1.0 - ( py / Math.max( 0.3, spec.ry ) ) * 0.30 ) : 1.0;
 
-		pos[ i ] = px * ( 1 + strata - cleaveA + cleaveB ) + lean;
-		pos[ i + 1 ] = py * ( 1 + cleaveB * 0.35 );
-		pos[ i + 2 ] = pz * ( 1 + strata * 0.85 - cleaveA * 0.7 );
+		pos[ i ] = px * spireTaper * radialMod + lean;
+		pos[ i + 1 ] = py * ( 1.0 + 0.04 * Math.cos( px * 4 + pz * 3.5 ) );
+		pos[ i + 2 ] = pz * spireTaper * radialMod;
 
-		const nx = nrm[ i ]!;
-		const ny = nrm[ i + 1 ]! / scaleY;
-		const nz = nrm[ i + 2 ]! / scaleZ;
-		const l = Math.hypot( nx, ny, nz ) || 1;
-		nrm[ i ] = nx / l;
-		nrm[ i + 1 ] = ny / l;
-		nrm[ i + 2 ] = nz / l;
-
-		// Keep rich granite vertex tone + natural upward moss tint (non-spotted!)
-		const up = Math.max( 0, nrm[ i + 1 ]! );
-		const moss = Math.min( 0.85, spec.mossCoverage * up * 1.45 * ( pos[ i + 1 ]! > - 0.04 ? 1 : 0 ) );
-		col[ i ] = 0.76 * ( 1 - moss ) + 0.42 * moss;
-		col[ i + 1 ] = 0.76 * ( 1 - moss ) + 0.68 * moss;
-		col[ i + 2 ] = 0.74 * ( 1 - moss ) + 0.32 * moss;
+		// Store fissure crevice factor temporarily in col[i] for post-normal AO pass
+		col[ i ] = fissure;
 
 	}
 
-	// Recompute crisp faceted/smooth vertex normals from actual deformed triangles
+	// Recompute triangle face normals then blend 45% flat angular facet normal + 55% smooth normal
 	const idx = base.indices;
 	nrm.fill( 0 );
 	for ( let k = 0; k < idx.length; k += 3 ) {
@@ -724,6 +758,15 @@ export function buildScholarRockMesh( spec: RockeryStoneSpec ): MeshBuffers {
 
 		const l = Math.hypot( nrm[ i ]!, nrm[ i + 1 ]!, nrm[ i + 2 ]! ) || 1;
 		nrm[ i ]! /= l; nrm[ i + 1 ]! /= l; nrm[ i + 2 ]! /= l;
+
+		const fissure = col[ i ]!;
+		const up = Math.max( 0, nrm[ i + 1 ]! );
+		// Pale weathered warm karst limestone + sunny emerald-olive moss ledges
+		const ao = Math.max( 0.72, 1.0 - fissure * 0.48 );
+		const moss = Math.min( 0.76, spec.mossCoverage * Math.pow( up, 1.2 ) * 1.55 * ( pos[ i + 1 ]! > - 0.02 ? 1 : 0 ) );
+		col[ i ] = ( 0.96 * ( 1 - moss ) + 0.42 * moss ) * ao;
+		col[ i + 1 ] = ( 0.94 * ( 1 - moss ) + 0.68 * moss ) * ao;
+		col[ i + 2 ] = ( 0.88 * ( 1 - moss ) + 0.18 * moss ) * ao;
 
 	}
 	return base;
@@ -754,19 +797,22 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 	const rcX = ROCKERY_CENTER[ 0 ];
 	const rcZ = ROCKERY_CENTER[ 1 ];
 	const rockTemplate: Array<{ dx: number; dz: number; rx: number; ry: number; rz: number; yOff: number; yaw: number; tier: RockeryStoneSpec[ 'tier' ]; moss: number; seed: number }> = [
-		// Base grounded massif boulders (embedded -0.25m into NW berm mound)
-		{ dx: - 0.55, dz: 0.35, rx: 0.88, ry: 0.62, rz: 0.72, yOff: 0.14, yaw: 0.4, tier: 'base', moss: 0.46, seed: 301 },
-		{ dx: 0.45, dz: 0.42, rx: 0.82, ry: 0.56, rz: 0.68, yOff: 0.12, yaw: - 0.6, tier: 'base', moss: 0.44, seed: 302 },
-		{ dx: - 0.12, dz: - 0.48, rx: 0.98, ry: 0.68, rz: 0.78, yOff: 0.18, yaw: 1.1, tier: 'base', moss: 0.42, seed: 303 },
-		{ dx: 0.82, dz: - 0.25, rx: 0.68, ry: 0.48, rz: 0.58, yOff: 0.10, yaw: 2.0, tier: 'base', moss: 0.40, seed: 304 },
-		// Mid stacked ledges (supported atop base stones)
-		{ dx: - 0.30, dz: 0.05, rx: 0.68, ry: 0.68, rz: 0.54, yOff: 0.62, yaw: 0.8, tier: 'mid', moss: 0.38, seed: 305 },
-		{ dx: 0.30, dz: - 0.10, rx: 0.62, ry: 0.60, rz: 0.50, yOff: 0.58, yaw: - 0.9, tier: 'mid', moss: 0.36, seed: 306 },
-		// Sculptural overhanging Taihu/karst crest peak
-		{ dx: - 0.08, dz: - 0.12, rx: 0.54, ry: 0.86, rz: 0.44, yOff: 1.08, yaw: 0.35, tier: 'peak', moss: 0.28, seed: 307 },
-		// Detached outer garden accent rocks (cleared from base & path)
-		{ dx: 1.38, dz: 0.52, rx: 0.36, ry: 0.26, rz: 0.30, yOff: 0.04, yaw: 1.4, tier: 'accent', moss: 0.35, seed: 308 },
-		{ dx: - 1.35, dz: 0.85, rx: 0.38, ry: 0.28, rz: 0.32, yOff: 0.05, yaw: 2.3, tier: 'accent', moss: 0.38, seed: 309 },
+		// Broad sprawling karst base slabs (breaks A-frame triangle into multi-crag natural ridge!)
+		{ dx: - 1.05, dz: 0.36, rx: 0.68, ry: 0.50, rz: 0.62, yOff: 0.12, yaw: 0.4, tier: 'base', moss: 0.46, seed: 301 },
+		{ dx: 0.96, dz: 0.36, rx: 0.66, ry: 0.46, rz: 0.58, yOff: 0.10, yaw: - 0.6, tier: 'base', moss: 0.44, seed: 302 },
+		{ dx: - 0.05, dz: - 0.46, rx: 0.88, ry: 0.56, rz: 0.68, yOff: 0.14, yaw: 1.0, tier: 'base', moss: 0.40, seed: 303 },
+		{ dx: 1.22, dz: - 0.14, rx: 0.52, ry: 0.42, rz: 0.48, yOff: 0.08, yaw: 1.9, tier: 'base', moss: 0.38, seed: 304 },
+		// Separated jagged karst crag towers & stepped shelves (distinct silhouette gaps!)
+		{ dx: - 0.72, dz: 0.04, rx: 0.40, ry: 0.96, rz: 0.36, yOff: 0.62, yaw: 0.75, tier: 'peak', moss: 0.30, seed: 305 },
+		{ dx: 0.58, dz: - 0.02, rx: 0.38, ry: 0.88, rz: 0.34, yOff: 0.56, yaw: - 0.85, tier: 'peak', moss: 0.30, seed: 306 },
+		{ dx: - 1.22, dz: - 0.10, rx: 0.36, ry: 0.64, rz: 0.34, yOff: 0.44, yaw: 1.45, tier: 'mid', moss: 0.38, seed: 310 },
+		// Dramatic twin weathered limestone peaks + sunny right shoulder pinnacle
+		{ dx: - 0.18, dz: - 0.18, rx: 0.34, ry: 1.04, rz: 0.30, yOff: 0.92, yaw: 0.35, tier: 'peak', moss: 0.22, seed: 307 },
+		{ dx: 0.32, dz: 0.18, rx: 0.30, ry: 0.72, rz: 0.28, yOff: 0.74, yaw: - 0.45, tier: 'mid', moss: 0.28, seed: 311 },
+		{ dx: 0.96, dz: 0.14, rx: 0.30, ry: 0.60, rz: 0.28, yOff: 0.48, yaw: 0.95, tier: 'mid', moss: 0.32, seed: 312 },
+		// Detached foreground accent boulders (cleared from path)
+		{ dx: 1.44, dz: 0.56, rx: 0.36, ry: 0.24, rz: 0.28, yOff: 0.04, yaw: 1.4, tier: 'accent', moss: 0.34, seed: 308 },
+		{ dx: - 1.40, dz: 0.82, rx: 0.40, ry: 0.28, rz: 0.32, yOff: 0.05, yaw: 2.3, tier: 'accent', moss: 0.38, seed: 309 },
 	];
 
 	for ( let i = 0; i < rockTemplate.length; i ++ ) {
@@ -804,7 +850,7 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 		{ id: 'tree_oak', preset: 'oak', x: - 0.25, y: 0, z: - 5.45, trunkClearanceRadius: 0.72, heightScale: 1.02, seed: 101 },
 		{ id: 'tree_pine', preset: 'pine', x: 6.10, y: 0, z: - 2.65, trunkClearanceRadius: 0.58, heightScale: 0.98, seed: 202 },
 		{ id: 'tree_birch', preset: 'birch', x: - 5.85, y: 0, z: 1.85, trunkClearanceRadius: 0.48, heightScale: 0.96, seed: 303 },
-		{ id: 'tree_pine_east', preset: 'pine', x: 7.25, y: 0, z: 2.75, trunkClearanceRadius: 0.52, heightScale: 0.84, seed: 404 },
+		{ id: 'tree_pine_east', preset: 'pine', x: 8.45, y: 0, z: 1.55, trunkClearanceRadius: 0.52, heightScale: 0.86, seed: 404 },
 		{ id: 'tree_horizon_nw', preset: 'pine', x: - 9.20, y: 0, z: - 6.80, trunkClearanceRadius: 0.55, heightScale: 1.08, seed: 405 },
 		{ id: 'tree_horizon_n', preset: 'birch', x: 4.50, y: 0, z: - 9.40, trunkClearanceRadius: 0.45, heightScale: 1.04, seed: 406 },
 		{ id: 'tree_horizon_ne', preset: 'oak', x: 10.20, y: 0, z: - 6.20, trunkClearanceRadius: 0.65, heightScale: 1.06, seed: 407 },
@@ -820,6 +866,49 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 			x: tr.x,
 			z: tr.z,
 			radius: tr.trunkClearanceRadius,
+		} );
+
+	}
+
+	// 2b. Dense Surrounding Woodland Horizon Ring (36 distant trees — eliminates empty horizon ridge!)
+	const distantTrees: TreePlacementSpec[] = [];
+	const distantPresets: Array<'oak' | 'pine' | 'birch'> = [ 'oak', 'pine', 'birch', 'pine', 'oak' ];
+	for ( let i = 0; i < 42; i ++ ) {
+
+		const th = ( i / 42 ) * Math.PI * 2 + rng.signed() * 0.05;
+		const dist = ( i % 2 === 0 ? 14.2 : 19.5 ) + rng.range( - 1.2, 2.8 );
+		const dx = Math.cos( th ) * dist;
+		const dz = Math.sin( th ) * dist;
+		distantTrees.push( {
+			id: `distant_tree_${ i }`,
+			preset: distantPresets[ i % distantPresets.length ]!,
+			x: dx,
+			y: sampleGardenTerrainHeight( dx, dz ),
+			z: dz,
+			trunkClearanceRadius: 0.70,
+			heightScale: rng.range( 0.92, 1.38 ),
+			seed: 800 + i * 17,
+		} );
+
+	}
+
+	// 2c. Dense Woodland Understory Shrubs filling eye-level horizon gaps between background trunks
+	const shrubs: Array<{ x: number; y: number; z: number; scale: number; yaw: number; seed: number }> = [];
+	for ( let i = 0; i < 60; i ++ ) {
+
+		const th = ( i / 60 ) * Math.PI * 2 + rng.signed() * 0.04;
+		const dist = ( i % 2 === 0 ? 11.2 : 14.5 ) + rng.range( - 0.8, 1.8 );
+		const sx = Math.cos( th ) * dist;
+		const sz = Math.sin( th ) * dist;
+		if ( distanceToPathSpine( sx, sz ) < 1.35 ) continue;
+		if ( lakeSignedDistance( sx, sz ) < 1.4 ) continue;
+		shrubs.push( {
+			x: sx,
+			y: sampleGardenTerrainHeight( sx, sz ) - 0.04,
+			z: sz,
+			scale: rng.range( 1.05, 1.55 ),
+			yaw: rng.range( 0, Math.PI * 2 ),
+			seed: 1500 + i * 19,
 		} );
 
 	}
@@ -928,13 +1017,17 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 
 	// 4. Curated Multi-Bed Flower Clusters bordering path, rockery apron & sunny shoreline
 	const flowerBeds: Array<{ preset: FlowerPlacementSpec[ 'preset' ]; cx: number; cz: number; count: number; spread: number }> = [
-		{ preset: 'daisy', cx: - 0.15, cz: 3.75, count: 6, spread: 0.72 },
-		{ preset: 'tulip', cx: - 2.35, cz: 2.35, count: 6, spread: 0.65 },
+		{ preset: 'daisy', cx: - 1.35, cz: 4.35, count: 8, spread: 0.78 },
+		{ preset: 'rose', cx: - 2.15, cz: 3.95, count: 8, spread: 0.75 },
+		{ preset: 'daisy', cx: - 0.15, cz: 3.75, count: 7, spread: 0.72 },
+		{ preset: 'rose', cx: - 1.55, cz: 3.35, count: 7, spread: 0.75 },
+		{ preset: 'tulip', cx: - 2.35, cz: 2.35, count: 7, spread: 0.65 },
 		{ preset: 'rose', cx: 1.55, cz: 2.85, count: 6, spread: 0.78 },
 		{ preset: 'daisy', cx: 4.55, cz: 2.45, count: 5, spread: 0.75 },
-		{ preset: 'tulip', cx: - 2.85, cz: - 0.15, count: 5, spread: 0.62 },
+		{ preset: 'tulip', cx: - 2.85, cz: - 0.15, count: 6, spread: 0.62 },
 		{ preset: 'rose', cx: - 2.65, cz: - 3.35, count: 5, spread: 0.68 },
 		{ preset: 'daisy', cx: 3.65, cz: - 3.25, count: 5, spread: 0.72 },
+		{ preset: 'daisy', cx: - 2.60, cz: 1.30, count: 5, spread: 0.58 },
 	];
 	const flowers: FlowerPlacementSpec[] = [];
 	for ( let b = 0; b < flowerBeds.length; b ++ ) {
@@ -971,11 +1064,117 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 
 	}
 
-	// 5. Dense Lush Lawn & Meadow Turf (collision-free against lake, path slabs, rockery, fountain, trees & flowers)
+	// 4b. Woodland Ferns nestled visibly on front rockery terraces, apron, Shore Boulders & Tree Shadows
+	const rockLedgeFerns: Array<[ number, number, number ]> = [
+		[ ROCKERY_CENTER[ 0 ] - 0.12, sampleGardenTerrainHeight( ROCKERY_CENTER[ 0 ] - 0.12, ROCKERY_CENTER[ 1 ] + 0.62 ) + 0.52, ROCKERY_CENTER[ 1 ] + 0.62 ],
+		[ ROCKERY_CENTER[ 0 ] - 0.75, sampleGardenTerrainHeight( ROCKERY_CENTER[ 0 ] - 0.75, ROCKERY_CENTER[ 1 ] + 0.58 ) + 0.44, ROCKERY_CENTER[ 1 ] + 0.58 ],
+		[ ROCKERY_CENTER[ 0 ] + 0.64, sampleGardenTerrainHeight( ROCKERY_CENTER[ 0 ] + 0.64, ROCKERY_CENTER[ 1 ] + 0.54 ) + 0.42, ROCKERY_CENTER[ 1 ] + 0.54 ],
+		[ ROCKERY_CENTER[ 0 ] + 0.18, sampleGardenTerrainHeight( ROCKERY_CENTER[ 0 ] + 0.18, ROCKERY_CENTER[ 1 ] + 0.85 ) + 0.18, ROCKERY_CENTER[ 1 ] + 0.85 ],
+	];
+	const fernTargets: Array<[ number, number ]> = [
+		[ ROCKERY_CENTER[ 0 ] - 1.85, ROCKERY_CENTER[ 1 ] + 1.35 ],
+		[ ROCKERY_CENTER[ 0 ] - 2.15, ROCKERY_CENTER[ 1 ] - 0.65 ],
+		[ ROCKERY_CENTER[ 0 ] + 1.75, ROCKERY_CENTER[ 1 ] - 1.45 ],
+		[ ROCKERY_CENTER[ 0 ] + 0.20, ROCKERY_CENTER[ 1 ] - 2.25 ],
+		[ ROCKERY_CENTER[ 0 ] - 1.05, ROCKERY_CENTER[ 1 ] - 2.05 ],
+		[ ROCKERY_CENTER[ 0 ] + 1.15, ROCKERY_CENTER[ 1 ] + 1.78 ],
+		[ LAKE_CENTER[ 0 ] - 3.35, LAKE_CENTER[ 1 ] + 1.95 ],
+		[ LAKE_CENTER[ 0 ] + 3.85, LAKE_CENTER[ 1 ] + 1.25 ],
+		[ LAKE_CENTER[ 0 ] + 2.95, LAKE_CENTER[ 1 ] + 2.55 ],
+		[ LAKE_CENTER[ 0 ] - 0.75, LAKE_CENTER[ 1 ] + 2.85 ],
+		[ LAKE_CENTER[ 0 ] + 3.95, LAKE_CENTER[ 1 ] - 1.85 ],
+		[ - 5.15, 1.30 ],
+		[ - 4.85, 2.45 ],
+		[ 0.45, - 4.85 ],
+		[ 5.45, - 2.10 ],
+		[ 6.35, 2.25 ],
+		[ - 1.25, - 5.85 ],
+	];
+	const ferns: FernPlacementSpec[] = [];
+	for ( let i = 0; i < rockLedgeFerns.length; i ++ ) {
+
+		const [ lx, ly, lz ] = rockLedgeFerns[ i ]!;
+		ferns.push( {
+			id: `fern_rock_ledge_${ i }`,
+			x: lx,
+			y: ly,
+			z: lz,
+			scale: rng.range( 0.75, 1.05 ),
+			yaw: rng.range( 0, Math.PI * 2 ),
+			radius: 0.20,
+			seed: 1150 + i * 23,
+		} );
+
+	}
+	for ( let i = 0; i < fernTargets.length; i ++ ) {
+
+		const [ tx, tz ] = fernTargets[ i ]!;
+		const fRad = 0.24;
+		if ( ! isDrySpotClear( tx, tz, fRad, 0.12 ) ) continue;
+		if ( distanceToPathSpine( tx, tz ) < 0.58 ) continue;
+		const fId = `fern_${ ferns.length }`;
+		ferns.push( {
+			id: fId,
+			x: tx,
+			y: sampleGardenTerrainHeight( tx, tz ),
+			z: tz,
+			scale: rng.range( 0.85, 1.25 ),
+			yaw: rng.range( 0, Math.PI * 2 ),
+			radius: fRad,
+			seed: 1200 + i * 29,
+		} );
+		colliders.push( { id: fId, kind: 'flower', x: tx, z: tz, radius: fRad } );
+
+	}
+
+	// 5. Dense Continuous Meadow Turf (3,000 soft-arching tufts out to r=17m) + 650 Accent Clumps
+	const meadowTufts: GrassPlacementSpec[] = [];
+	const targetMeadow = 3000;
+	let mAttempts = 0;
+	while ( meadowTufts.length < targetMeadow && mAttempts < 24000 ) {
+
+		mAttempts ++;
+		const ang = rng.range( 0, Math.PI * 2 );
+		const dist = Math.sqrt( rng.next() ) * 17.0;
+		const gx = Math.cos( ang ) * dist;
+		const gz = Math.sin( ang ) * dist;
+		const gRad = 0.06;
+
+		if ( lakeSignedDistance( gx, gz ) < 0.14 ) continue;
+		if ( distanceToPathSpine( gx, gz ) < 0.34 ) continue;
+		let blocked = false;
+		for ( const c of colliders ) {
+
+			if ( c.kind === 'grass' ) continue;
+			const pad = c.kind === 'flagstone' ? 0.075 : c.kind === 'flower' ? 0.02 : 0.05;
+			if ( Math.hypot( gx - c.x, gz - c.z ) < c.radius + pad ) {
+
+				blocked = true;
+				break;
+
+			}
+
+		}
+		if ( blocked ) continue;
+
+		const gy = sampleGardenTerrainHeight( gx, gz );
+		meadowTufts.push( {
+			id: `meadow_${ meadowTufts.length }`,
+			preset: 'fescue',
+			x: gx,
+			y: gy,
+			z: gz,
+			scale: rng.range( 0.82, 1.32 ),
+			yaw: rng.range( 0, Math.PI * 2 ),
+			radius: gRad,
+		} );
+
+	}
+
 	const grassClumps: GrassPlacementSpec[] = [];
-	const targetGrass = 980;
+	const targetGrass = 650;
 	let gAttempts = 0;
-	while ( grassClumps.length < targetGrass && gAttempts < 8200 ) {
+	while ( grassClumps.length < targetGrass && gAttempts < 6200 ) {
 
 		gAttempts ++;
 		const ang = rng.range( 0, Math.PI * 2 );
@@ -986,7 +1185,7 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 
 		// Keep grass completely out of the lake, off flagstone slabs, out of rockery stones & tree trunks
 		if ( lakeSignedDistance( gx, gz ) < 0.16 ) continue;
-		if ( distanceToPathSpine( gx, gz ) < 0.44 ) continue;
+		if ( distanceToPathSpine( gx, gz ) < 0.46 ) continue;
 		let blocked = false;
 		for ( const c of colliders ) {
 
@@ -1004,9 +1203,9 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 
 		const gy = sampleGardenTerrainHeight( gx, gz );
 		const rChoice = rng.next();
-		const preset: GrassPresetIdCompat = rChoice < 0.62 ? 'fescue' : rChoice < 0.85 ? 'sedge' : 'foxtail';
+		const preset: GrassPresetIdCompat = rChoice < 0.50 ? 'fescue' : rChoice < 0.80 ? 'sedge' : 'foxtail';
 		const nearShore = lakeSignedDistance( gx, gz ) < 0.9;
-		const sc = nearShore ? rng.range( 0.95, 1.35 ) : rng.range( 0.72, 1.22 );
+		const sc = nearShore ? rng.range( 0.95, 1.35 ) : rng.range( 0.72, 1.18 );
 		grassClumps.push( {
 			id: `grass_${ grassClumps.length }`,
 			preset,
@@ -1075,8 +1274,12 @@ export function planBotanicalGardenLayout( seed = 2026 ): GardenLayoutPlan {
 		rockeryStones,
 		shoreBoulders,
 		trees,
+		distantTrees,
+		shrubs,
+		ferns,
 		flowers,
 		grassClumps,
+		meadowTufts,
 		lilyPads,
 		reeds,
 		colliders,
@@ -1170,16 +1373,16 @@ export function verifyGardenNonInterference( plan: GardenLayoutPlan ): string[] 
 		}
 
 	}
-	for ( const gr of plan.grassClumps ) {
+	for ( const gr of [ ...plan.grassClumps, ...plan.meadowTufts ] ) {
 
-		if ( lakeSignedDistance( gr.x, gr.z ) < 0.14 ) {
+		if ( lakeSignedDistance( gr.x, gr.z ) < 0.12 ) {
 
 			violations.push( `${ gr.id } underwater in lake` );
 
 		}
 		for ( const st of plan.flagstones ) {
 
-			if ( Math.hypot( gr.x - st.cx, gr.z - st.cz ) < st.radius + 0.08 ) {
+			if ( Math.hypot( gr.x - st.cx, gr.z - st.cz ) < st.radius + 0.06 ) {
 
 				violations.push( `${ gr.id } grows through ${ st.id }` );
 
@@ -1189,6 +1392,20 @@ export function verifyGardenNonInterference( plan: GardenLayoutPlan ): string[] 
 		if ( Math.hypot( gr.x - plan.rockeryCenter[ 0 ], gr.z - plan.rockeryCenter[ 1 ] ) < plan.rockeryFootprintRadius ) {
 
 			violations.push( `${ gr.id } clips inside rockery` );
+
+		}
+
+	}
+	for ( const fn of plan.ferns ) {
+
+		if ( lakeSignedDistance( fn.x, fn.z ) < 0.10 ) violations.push( `${ fn.id } inside lake` );
+		for ( const st of plan.flagstones ) {
+
+			if ( Math.hypot( fn.x - st.cx, fn.z - st.cz ) < st.radius + fn.radius ) {
+
+				violations.push( `${ fn.id } clips ${ st.id }` );
+
+			}
 
 		}
 

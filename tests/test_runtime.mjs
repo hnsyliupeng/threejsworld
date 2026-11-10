@@ -23,8 +23,12 @@ import {
   generateRealisticTree,
   buildFlowerClump,
   buildGrassClump,
+  buildMeadowTuft,
+  buildFernRosette,
+  buildWoodlandShrub,
   synthesizeBarkSurface,
   synthesizeSoilSurface,
+  synthesizePebbleBedSurface,
   synthesizeLeafSprigAtlas,
   synthesizeCarvedLimestoneSurface,
   synthesizeFlagstoneSlateSurface,
@@ -263,16 +267,35 @@ function assertOutwardWinding(name, mesh) {
   }
   const soil = synthesizeSoilSurface(64, 77);
   assert.equal(soil.albedoSRGB.length, 64 * 64 * 4);
+  const pebbles = synthesizePebbleBedSurface(64, 211);
+  assert.equal(pebbles.albedoSRGB.length, 64 * 64 * 4);
+  const fernAtlas = synthesizeLeafSprigAtlas('fern', 64);
+  assert.equal(fernAtlas.size, 64);
+  const shrubAtlas = synthesizeLeafSprigAtlas('shrub', 64);
+  assert.equal(shrubAtlas.size, 64);
+  const meadow = buildMeadowTuft(515, 12);
+  assert.ok(meadow.positions.length > 0 && meadow.indices.length > 0);
+  const fern = buildFernRosette(707, 9);
+  assert.ok(fern.positions.length > 0 && fern.indices.length > 0);
+  const shrub = buildWoodlandShrub(1828, 42);
+  assert.ok(shrub.positions.length > 0 && shrub.indices.length > 0);
+  const oakHorizon = generateRealisticTree({ preset: 'oak', seed: 101, lod: 'horizon' });
+  const oakHero = generateRealisticTree({ preset: 'oak', seed: 101, lod: 'hero' });
+  assert.ok(oakHorizon.leafCount < oakHero.leafCount, 'Horizon LOD must emit fewer foliage triangles than hero LOD');
 }
 
 // 9. Photorealistic Lake Garden Layout, Non-Interference Solver & Stone/Water PBR (`gardenLayout.ts`)
 {
   const plan = planBotanicalGardenLayout(2026);
   assert.ok(plan.flagstones.length >= 16, `Expected continuous flagstone path, got ${plan.flagstones.length}`);
-  assert.ok(plan.rockeryStones.length >= 7, 'Expected multi-tier scholar rockery');
-  assert.ok(plan.trees.length >= 4, 'Expected framing woodland trees');
+  assert.ok(plan.rockeryStones.length >= 9, 'Expected multi-tier scholar rockery');
+  assert.ok(plan.trees.length >= 4, 'Expected framing courtyard trees');
+  assert.ok(plan.distantTrees.length >= 30, 'Expected surrounding woodland horizon ring');
+  assert.ok(plan.shrubs.length >= 40, 'Expected woodland understory shrubs');
+  assert.ok(plan.ferns.length >= 8, 'Expected rockery/shore woodland ferns');
   assert.ok(plan.flowers.length >= 25, 'Expected multi-bed garden flowers');
-  assert.ok(plan.grassClumps.length >= 800, 'Expected dense collision-free turf');
+  assert.ok(plan.grassClumps.length >= 500, 'Expected accent grass clumps');
+	assert.ok(plan.meadowTufts.length >= 2000, 'Expected dense continuous meadow lawn');
   assert.ok(plan.lilyPads.length >= 10, 'Expected lake lily pads');
 
   const violations = verifyGardenNonInterference(plan);

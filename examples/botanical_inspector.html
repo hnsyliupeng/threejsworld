@@ -1,339 +1,383 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ThreeJSWorld — Photorealistic Botanical Lake Garden &amp; Asset Suite</title>
+  <title>ThreeJSWorld — Photorealistic Botanical Lake Garden</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0e1318; color: #e6edf3; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      background: #141a15; font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: #eef3ed;
+    }
+    #canvas-wrap { position: fixed; inset: 0; }
+
+    /* Compact sleek glassmorphism controls (minimized footprint so 95%+ of 3D scene stays clear!) */
     #hud {
-      position: fixed; top: 12px; right: 12px; z-index: 20;
-      width: 256px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px);
-      overflow-y: auto;
-      background: rgba(13, 18, 24, 0.84); border: 1px solid #2b3949; border-radius: 10px;
-      padding: 10px 12px; backdrop-filter: blur(10px); font-size: 11.5px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      position: fixed; top: 12px; right: 12px; width: min(264px, calc(100vw - 24px));
+      background: rgba(14, 20, 17, 0.72); border: 1px solid rgba(190, 224, 188, 0.20);
+      border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.36); z-index: 10; font-size: 12px;
+      max-height: calc(100vh - 24px); overflow-y: auto;
     }
-    body.clean #hud, body.clean #hudRestore { display: none; }
-    #hud.collapsed { display: none; }
-    #hudRestore {
-      position: fixed; top: 12px; right: 12px; z-index: 21; display: none;
-      background: rgba(13, 18, 24, 0.86); color: #7ee787; border: 1px solid #2b3949;
-      border-radius: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    #hud.collapsed { width: auto; padding: 6px 10px; border-radius: 999px; }
+    #hud.collapsed .hud-body { display: none; }
+    .hud-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    #hud h1 { margin: 0; font-size: 12.5px; font-weight: 600; color: #b7ecb8; letter-spacing: 0.2px; }
+    #hudToggle {
+      width: auto; margin: 0; padding: 3px 9px; font-size: 11px; border-radius: 999px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); color: #dde8de;
+      cursor: pointer;
     }
-    #hudRestore.visible { display: block; }
-    .hdr { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
-    h1 { font-size: 13px; font-weight: 700; color: #7ee787; }
-    .sub { color: #90a4b8; font-size: 10.5px; margin-bottom: 8px; line-height: 1.35; }
+    #hudToggle:hover { background: rgba(120, 210, 125, 0.25); }
+    .hud-body { margin-top: 8px; }
     .row { display: flex; align-items: center; justify-content: space-between; margin: 5px 0; gap: 6px; }
-    select, button {
-      background: #1a232e; color: #e6edf3; border: 1px solid #334355; border-radius: 6px;
-      padding: 4px 7px; font-size: 11px; cursor: pointer;
+    select {
+      background: rgba(255, 255, 255, 0.08); color: #eef3ed; border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 6px; padding: 3px 6px; font-size: 11.5px; cursor: pointer; max-width: 152px;
     }
-    select { max-width: 152px; }
-    button:hover { background: #263344; }
-    .cam-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 5px; }
-    .cam-grid button.wide { grid-column: span 2; }
-    .section { border-top: 1px solid #24303e; margin-top: 7px; padding-top: 7px; }
-    #stats { font-family: ui-monospace, monospace; font-size: 10px; color: #9cb0c4; margin-top: 7px; line-height: 1.4; }
+    select option { background: #161e19; color: #eef3ed; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; margin: 7px 0; }
+    label.chk { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: #d5e2d5; }
+    .stats {
+      margin-top: 7px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.10);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; color: #9fc0a4;
+      line-height: 1.4;
+    }
+
+    /* Bottom slim camera preset bar — keeps full view unobstructed */
+    #cam-bar {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; z-index: 10;
+      padding: 5px 8px; border-radius: 999px;
+      background: rgba(14, 20, 17, 0.68); border: 1px solid rgba(190, 224, 188, 0.18);
+      backdrop-filter: blur(10px); max-width: calc(100vw - 24px);
+    }
+    #cam-bar button {
+      background: transparent; color: #d9e6da; border: 1px solid transparent;
+      border-radius: 999px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    #cam-bar button:hover { background: rgba(255, 255, 255, 0.10); }
+    #cam-bar button.active {
+      background: rgba(118, 204, 124, 0.24); border-color: rgba(140, 232, 146, 0.55); color: #ffffff;
+    }
+    body.clean-mode #hud, body.clean-mode #cam-bar { display: none !important; }
   </style>
   <script type="importmap">
-    {
-      "imports": {
-        "three": "/vendor/three/build/three.module.js",
-        "three/addons/": "/vendor/three/examples/jsm/"
-      }
+  {
+    "imports": {
+      "three": "../node_modules/three/build/three.module.js",
+      "three/addons/": "../node_modules/three/examples/jsm/"
     }
+  }
   </script>
 </head>
 <body>
-  <button id="hudRestore" type="button">Show Controls</button>
+  <div id="canvas-wrap"></div>
 
-  <div id="hud">
-    <div class="hdr">
+  <div id="hud" class="collapsed">
+    <div class="hud-header">
       <h1>ThreeJSWorld Garden</h1>
-      <button id="hudHide" type="button">Hide</button>
+      <button id="hudToggle" title="Toggle Settings Drawer">Controls</button>
     </div>
-    <div class="sub">Photorealistic Lake, Fountain, Flagstone Path, PBR Rockery, Trees, Flowers &amp; Turf (Zero Overlap)</div>
-
-    <div class="row">
-      <label for="viewMode">Asset Mode</label>
-      <select id="viewMode">
-        <option value="all">Garden (Full Scene)</option>
-        <option value="tree">Tree Isolation</option>
-        <option value="flower">Flower Macro</option>
-        <option value="grass">Grass Turf Macro</option>
-      </select>
-    </div>
-
-    <div class="row">
-      <label for="speciesSelect">Species / Seed</label>
-      <select id="speciesSelect">
-        <option value="oak">Oak / Daisy / Fescue</option>
-        <option value="pine">Pine / Rose / Foxtail</option>
-        <option value="birch">Birch / Tulip / Sedge</option>
-      </select>
-    </div>
-
-    <div class="section">
-      <div class="row"><label><input type="checkbox" id="chkLeaves" checked /> Leaves (--without leaves)</label></div>
-      <div class="row"><label><input type="checkbox" id="chkNormal" checked /> Surface::shaped Normals</label></div>
-      <div class="row"><label><input type="checkbox" id="chkWind" checked /> Wind &amp; Water Motion</label></div>
-      <div class="row"><label><input type="checkbox" id="chkWire" /> Wireframe Topology</label></div>
-    </div>
-
-    <div class="section">
-      <div style="font-weight:600;margin-bottom:4px;">Camera Angles</div>
-      <div class="cam-grid">
-        <button data-cam="hero">Garden Hero</button>
-        <button data-cam="closeup">Fountain &amp; Lake</button>
-        <button data-cam="rockery">Rockery &amp; Path</button>
-        <button data-cam="back">Opposite Rear</button>
-        <button data-cam="top" class="wide">Top-Down Layout Audit</button>
+    <div class="hud-body">
+      <div class="row">
+        <span>Scene Mode</span>
+        <select id="modeSelect">
+          <option value="all" selected>Photoreal Lake Garden</option>
+          <option value="tree">Single Tree Specimen</option>
+          <option value="flower">Single Flower Specimen</option>
+          <option value="grass">Single Grass Patch</option>
+        </select>
       </div>
+      <div class="row">
+        <span>Theme / Species</span>
+        <select id="speciesSelect">
+          <option value="oak" selected>Oak / Daisy / Fescue</option>
+          <option value="pine">Pine / Rose / Foxtail</option>
+          <option value="birch">Birch / Tulip / Sedge</option>
+        </select>
+      </div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" id="chkLeaves" checked /> Leaves</label>
+        <label class="chk"><input type="checkbox" id="chkNormal" checked /> PBR Normals</label>
+        <label class="chk"><input type="checkbox" id="chkWind" checked /> Flowing Water & Wind</label>
+        <label class="chk"><input type="checkbox" id="chkWire" /> Wireframe</label>
+      </div>
+      <div class="stats" id="stats">Loading garden...</div>
     </div>
+  </div>
 
-    <div id="stats">Loading photorealistic garden…</div>
+  <div id="cam-bar">
+    <button data-cam="hero" class="active">Hero Vista</button>
+    <button data-cam="closeup">Fountain &amp; Lake</button>
+    <button data-cam="rockery">Rockery &amp; Path</button>
+    <button data-cam="aerial">Elevated Meadow</button>
+    <button data-cam="back">Opposite Rear</button>
+    <button data-cam="top">Top-Down Audit</button>
   </div>
 
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import {
-      buildProceduralSkyDomeAndPMREM,
+      GOLDEN_SUN_DIR,
       buildBotanicalGardenGroup,
+      buildProceduralSkyDomeAndPMREM,
       buildTreeMeshGroup,
       buildFlowerMeshGroup,
       buildGrassFieldGroup,
       buildTerrainAndBoulder,
-    } from '/runtime/three/createFloraScene.ts';
+    } from '../runtime/three/createFloraScene.ts';
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('hud') === '0') document.body.classList.add('clean');
+    const params = new URLSearchParams(location.search);
+    if (params.get('clean') === '1') {
+      document.body.classList.add('clean-mode');
+    }
+    const startExpanded = params.get('hud') === 'open';
+    const hudEl = document.getElementById('hud');
+    const hudToggle = document.getElementById('hudToggle');
+    if (startExpanded) {
+      hudEl.classList.remove('collapsed');
+      hudToggle.textContent = 'Hide';
+    }
+    hudToggle.addEventListener('click', () => {
+      const collapsed = hudEl.classList.toggle('collapsed');
+      hudToggle.textContent = collapsed ? 'Controls' : 'Hide';
+    });
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    const container = document.getElementById('canvas-wrap');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.78;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    document.body.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2('#a7c1d8', 0.0085);
+    scene.fog = new THREE.FogExp2(0xdac596, 0.0095);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 320);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.maxPolarAngle = Math.PI * 0.488;
+    controls.minDistance = 0.5;
+    controls.maxDistance = 38;
 
     const { skyDome, envMap } = buildProceduralSkyDomeAndPMREM(renderer);
     scene.add(skyDome);
     scene.environment = envMap;
-    scene.environmentIntensity = 0.72;
+    scene.environmentIntensity = 0.28;
 
-    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.03, 220);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = false;
-
-    const hemi = new THREE.HemisphereLight('#ddecff', '#3b4d2b', 0.76);
-    scene.add(hemi);
-
-    const sun = new THREE.DirectionalLight('#ffedd0', 3.05);
-    sun.position.set(13, 10.5, 8.5);
+    // Golden late-afternoon sunlight + sky fill + warm sunlit bounce light
+    const sun = new THREE.DirectionalLight(0xffcd86, 4.05);
+    sun.position.copy(GOLDEN_SUN_DIR).multiplyScalar(28);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 48;
-    sun.shadow.camera.left = -12;
-    sun.shadow.camera.right = 12;
-    sun.shadow.camera.top = 14;
-    sun.shadow.camera.bottom = -10;
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.022;
+    sun.shadow.camera.near = 2;
+    sun.shadow.camera.far = 65;
+    sun.shadow.camera.left = -15;
+    sun.shadow.camera.right = 15;
+    sun.shadow.camera.top = 15;
+    sun.shadow.camera.bottom = -13;
+    sun.shadow.bias = -0.00045;
+    sun.shadow.normalBias = 0.025;
     scene.add(sun);
 
-    const windUniforms = { uTime: { value: 0 }, uWindStrength: { value: 1.0 } };
+    const hemi = new THREE.HemisphereLight(0x9ac4ec, 0x263812, 0.66);
+    scene.add(hemi);
 
-    const hudEl = document.getElementById('hud');
-    const hudHideBtn = document.getElementById('hudHide');
-    const hudRestoreBtn = document.getElementById('hudRestore');
-    hudHideBtn.addEventListener('click', () => {
-      hudEl.classList.add('collapsed');
-      hudRestoreBtn.classList.add('visible');
-    });
-    hudRestoreBtn.addEventListener('click', () => {
-      hudEl.classList.remove('collapsed');
-      hudRestoreBtn.classList.remove('visible');
-    });
+    const rimBounce = new THREE.DirectionalLight(0xffe2ae, 0.60);
+    rimBounce.position.set(-12, 7, 14);
+    scene.add(rimBounce);
 
-    const viewSel = document.getElementById('viewMode');
-    const spSel = document.getElementById('speciesSelect');
+    const windUniforms = {
+      uTime: { value: 0 },
+      uWindStrength: { value: 1.0 },
+    };
+
+    const assetRoot = new THREE.Group();
+    scene.add(assetRoot);
+
+    const modeSelect = document.getElementById('modeSelect');
+    const speciesSelect = document.getElementById('speciesSelect');
     const chkLeaves = document.getElementById('chkLeaves');
     const chkNormal = document.getElementById('chkNormal');
     const chkWind = document.getElementById('chkWind');
     const chkWire = document.getElementById('chkWire');
+    const statsEl = document.getElementById('stats');
 
-    if (params.get('view')) viewSel.value = params.get('view');
-    if (params.get('species')) spSel.value = params.get('species');
+    if (params.get('mode')) modeSelect.value = params.get('mode');
+    if (params.get('species')) speciesSelect.value = params.get('species');
     if (params.get('leaves') === '0') chkLeaves.checked = false;
-    if (params.get('normal') === '0') chkNormal.checked = false;
-    if (params.get('wind') === '0') chkWind.checked = false;
     if (params.get('wire') === '1') chkWire.checked = true;
 
-    let activeGroup = new THREE.Group();
-    let activeAnimatedMaps = [];
-    let activeStreamUniforms = null;
-    scene.add(activeGroup);
+    let activeGarden = null;
 
-    const TREE_MAP = { oak: 'oak', pine: 'pine', birch: 'birch' };
-    const FLOWER_MAP = { oak: 'daisy', pine: 'rose', birch: 'tulip' };
-    const GRASS_MAP = { oak: 'fescue', pine: 'foxtail', birch: 'sedge' };
+    function setActiveCameraBtn(camKey) {
+      document.querySelectorAll('#cam-bar button').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.cam === camKey);
+      });
+    }
 
-    function setCameraPreset(camKey) {
-      const mode = viewSel.value;
-      if (mode === 'flower') {
+    function applyCameraPreset(camKey) {
+      const mode = modeSelect.value;
+      const species = speciesSelect.value;
+      setActiveCameraBtn(camKey);
+
+      if (mode === 'all') {
+        camera.fov = 44;
         if (camKey === 'closeup') {
-          camera.position.set(0.24, 0.62, 0.32);
-          controls.target.set(0, 0.46, 0);
-        } else if (camKey === 'back') {
-          camera.position.set(-0.35, 0.52, -0.42);
-          controls.target.set(0, 0.34, 0);
-        } else if (camKey === 'top') {
-          camera.position.set(0.02, 0.88, 0.14);
-          controls.target.set(0, 0.44, 0);
-        } else {
-          camera.position.set(0.45, 0.50, 0.52);
-          controls.target.set(0, 0.30, 0);
-        }
-      } else if (mode === 'grass') {
-        if (camKey === 'closeup') {
-          camera.position.set(0.42, 0.38, 0.55);
-          controls.target.set(0, 0.22, 0);
-        } else if (camKey === 'back') {
-          camera.position.set(-0.85, 0.46, -0.85);
-          controls.target.set(0, 0.20, 0);
-        } else if (camKey === 'top') {
-          camera.position.set(0, 1.55, 0.35);
-          controls.target.set(0, 0.12, 0);
-        } else {
-          camera.position.set(1.05, 0.62, 1.15);
-          controls.target.set(0, 0.22, 0);
-        }
-      } else if (mode === 'tree') {
-        const sp = spSel.value;
-        const midY = sp === 'pine' ? 3.8 : 2.9;
-        if (camKey === 'closeup') {
-          camera.position.set(1.8, 1.45, 2.2);
-          controls.target.set(0, 1.35, 0);
-        } else if (camKey === 'back') {
-          camera.position.set(-5.8, midY + 1.0, -7.2);
-          controls.target.set(0, midY, 0);
-        } else if (camKey === 'top') {
-          camera.position.set(0.2, 11.5, 2.5);
-          controls.target.set(0, midY, 0);
-        } else {
-          camera.position.set(6.4, midY + 0.9, 7.6);
-          controls.target.set(0, midY, 0);
-        }
-      } else {
-        // Full Photorealistic Botanical Lake Garden
-        if (camKey === 'closeup') {
-          // Fountain, water arcs, lily pads & lake shoreline macro
-          camera.position.set(0.25, 1.85, 4.15);
-          controls.target.set(2.20, 0.55, -0.30);
+          // S02: Close-up of carved fountain, concentric ripples, splash foam & shallow pebbles
+          camera.fov = 40;
+          camera.position.set(-0.55, 1.32, 2.35);
+          controls.target.set(2.35, 0.62, -0.35);
         } else if (camKey === 'rockery') {
-          // PBR Scholar's Rockery (假山) & winding flagstone path + flowers
-          camera.position.set(-1.35, 1.65, 3.05);
-          controls.target.set(-3.65, 0.72, -1.25);
+          // S03: Eye-level karst rockery + nestled ferns + split-slate path + tulips
+          camera.fov = 42;
+          camera.position.set(-0.75, 1.36, 3.65);
+          controls.target.set(-3.45, 0.72, -1.25);
+        } else if (camKey === 'aerial') {
+          // S04: Elevated 3/4 balcony overlook across whole garden & hazy horizon forest
+          camera.fov = 44;
+          camera.position.set(-4.6, 5.2, 10.6);
+          controls.target.set(0.5, 0.55, -0.8);
         } else if (camKey === 'back') {
-          // Open north-east garden corridor looking back across Fountain, Lake, Flagstone Path & PBR Rockery
-          camera.position.set(2.45, 2.20, -4.15);
-          controls.target.set(-1.35, 0.75, 0.35);
+          camera.position.set(2.55, 2.15, -4.15);
+          controls.target.set(-1.35, 0.72, 0.25);
         } else if (camKey === 'top') {
-          // High bird's-eye view proving zero interference between lake, path, rockery, fountain & trees
           camera.position.set(0.1, 15.8, 1.6);
           controls.target.set(0.1, 0.0, -0.4);
         } else {
-          // Garden Hero 3/4 panorama: shifts key garden focal zone clear of top-right HUD panel!
-          camera.position.set(-1.35, 4.55, 11.45);
-          controls.target.set(0.65, 0.85, -0.95);
+          // S01 Hero Vista: DSLR eye-level 3/4 view matching cook/refs/R01_hero.png
+          camera.fov = 44;
+          camera.position.set(-0.95, 2.05, 8.25);
+          controls.target.set(0.15, 0.85, -1.15);
         }
+      } else if (mode === 'tree') {
+        camera.fov = 44;
+        const h = species === 'pine' ? 7.2 : species === 'birch' ? 5.6 : 4.8;
+        if (camKey === 'closeup') {
+          camera.position.set(1.6, h * 0.42, 2.5);
+          controls.target.set(0, h * 0.45, 0);
+        } else if (camKey === 'back') {
+          camera.position.set(-4.6, h * 0.52, -5.0);
+          controls.target.set(0, h * 0.46, 0);
+        } else if (camKey === 'top') {
+          camera.position.set(0.1, h * 1.65, 2.0);
+          controls.target.set(0, h * 0.45, 0);
+        } else {
+          camera.position.set(5.4, h * 0.50, 5.8);
+          controls.target.set(0, h * 0.46, 0);
+        }
+      } else if (mode === 'flower') {
+        camera.fov = 42;
+        if (camKey === 'closeup') {
+          camera.position.set(0.24, 0.58, 0.36);
+          controls.target.set(0, 0.38, 0);
+        } else {
+          camera.position.set(0.62, 0.48, 0.86);
+          controls.target.set(0, 0.34, 0);
+        }
+      } else {
+        camera.fov = 44;
+        camera.position.set(1.35, 0.72, 1.55);
+        controls.target.set(0, 0.16, 0);
       }
+      camera.updateProjectionMatrix();
       controls.update();
     }
 
-    function rebuildScene() {
-      scene.remove(activeGroup);
-      activeGroup = new THREE.Group();
-      activeAnimatedMaps = [];
-      activeStreamUniforms = null;
+    function disposeTree(obj) {
+      obj.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          if (!m) continue;
+          if (m.map) m.map.dispose();
+          if (m.normalMap) m.normalMap.dispose();
+          if (m.roughnessMap) m.roughnessMap.dispose();
+          if (m.aoMap) m.aoMap.dispose();
+          m.dispose();
+        }
+      });
+    }
 
-      const mode = viewSel.value;
-      const key = spSel.value;
+    function rebuildScene(preserveCam = false) {
+      while (assetRoot.children.length > 0) {
+        const ch = assetRoot.children.pop();
+        disposeTree(ch);
+      }
+      activeGarden = null;
+
+      const mode = modeSelect.value;
+      const species = speciesSelect.value;
       const showLeaves = chkLeaves.checked;
       const useNormal = chkNormal.checked;
       const wireframe = chkWire.checked;
       windUniforms.uWindStrength.value = chkWind.checked ? 1.0 : 0.0;
 
-      if (mode === 'tree') {
-        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
-        const tree = buildTreeMeshGroup(TREE_MAP[key], 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe });
-        activeGroup.add(ground, tree);
-      } else if (mode === 'flower') {
-        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
-        const flMain = buildFlowerMeshGroup(FLOWER_MAP[key], 21, windUniforms, { heightMeters: 0.48, useNormalMap: useNormal, wireframe });
-        const flSide1 = buildFlowerMeshGroup(FLOWER_MAP[key], 29, windUniforms, { heightMeters: 0.39, useNormalMap: useNormal, wireframe });
-        flSide1.position.set(-0.14, 0, 0.08);
-        flSide1.rotation.y = 1.2;
-        const flSide2 = buildFlowerMeshGroup(FLOWER_MAP[key], 37, windUniforms, { heightMeters: 0.42, useNormalMap: useNormal, wireframe });
-        flSide2.position.set(0.15, 0, -0.06);
-        flSide2.rotation.y = -0.8;
-        const baseGrass = buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 16, radius: 0.45, seed: 88, wireframe });
-        activeGroup.add(ground, flMain, flSide1, flSide2, baseGrass);
-      } else if (mode === 'grass') {
-        const { ground } = buildTerrainAndBoulder(useNormal, wireframe);
-        const g1 = buildGrassFieldGroup(GRASS_MAP[key], windUniforms, { clumpCount: 55, radius: 0.85, seed: 55, wireframe });
-        activeGroup.add(ground, g1);
-      } else {
-        const built = buildBotanicalGardenGroup(windUniforms, {
+      if (mode === 'all') {
+        activeGarden = buildBotanicalGardenGroup(windUniforms, {
           showLeaves,
           useNormalMap: useNormal,
           wireframe,
-          gardenTheme: key,
+          gardenTheme: species,
         });
-        activeGroup.add(built.group);
-        activeAnimatedMaps = built.animatedMaps;
-        activeStreamUniforms = built.waterStreamUniforms;
+        assetRoot.add(activeGarden.group);
+      } else {
+        const env = buildTerrainAndBoulder(useNormal, wireframe);
+        assetRoot.add(env.ground);
+        if (mode === 'tree') {
+          env.rock.position.set(2.4, 0.1, 1.8);
+          assetRoot.add(env.rock);
+          assetRoot.add(buildTreeMeshGroup(species, 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe }));
+          assetRoot.add(buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 95, radius: 4.5, minRadius: 0.45, seed: 11, wireframe }));
+        } else if (mode === 'flower') {
+          const flSpecies = species === 'oak' ? 'daisy' : species === 'pine' ? 'rose' : 'tulip';
+          const fl = buildFlowerMeshGroup(flSpecies, 55, windUniforms, { heightMeters: 0.48, useNormalMap: useNormal, wireframe });
+          assetRoot.add(fl);
+          assetRoot.add(buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 45, radius: 1.4, minRadius: 0.22, seed: 22, wireframe }));
+        } else {
+          const grSpecies = species === 'oak' ? 'fescue' : species === 'pine' ? 'foxtail' : 'sedge';
+          assetRoot.add(buildGrassFieldGroup(grSpecies, windUniforms, { clumpCount: 68, radius: 1.6, minRadius: 0.0, seed: 44, wireframe }));
+        }
       }
-
-      scene.add(activeGroup);
 
       let tris = 0;
       let meshes = 0;
-      activeGroup.traverse((o) => {
-        if (o.isMesh || o.isInstancedMesh) {
-          meshes++;
-          const cnt = o.isInstancedMesh ? o.count : 1;
-          const idxCount = o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count;
-          tris += Math.round((idxCount / 3) * cnt);
+      assetRoot.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) {
+          meshes += 1;
+          const cnt = obj.isInstancedMesh ? obj.count : 1;
+          const idx = obj.geometry.getIndex();
+          const vCount = idx ? idx.count : obj.geometry.getAttribute('position').count;
+          tris += Math.round((vCount / 3) * cnt);
         }
       });
-      document.getElementById('stats').textContent =
-        `Mode: ${mode} (${key}) | Meshes: ${meshes} | Triangles: ${tris.toLocaleString()}`;
+      statsEl.textContent = `Mode: ${mode} (${species})\nMeshes: ${meshes} | Tris: ${tris.toLocaleString()}`;
+
+      if (!preserveCam) {
+        applyCameraPreset(params.get('cam') || 'hero');
+      }
     }
 
-    const camParam = params.get('cam') || 'hero';
-    rebuildScene();
-    setCameraPreset(camParam);
-
-    [viewSel, spSel, chkLeaves, chkNormal, chkWind, chkWire].forEach((el) => {
-      el.addEventListener('change', () => {
-        rebuildScene();
-        if (el === viewSel || el === spSel) setCameraPreset('hero');
-      });
+    modeSelect.addEventListener('change', () => rebuildScene(false));
+    speciesSelect.addEventListener('change', () => rebuildScene(true));
+    chkLeaves.addEventListener('change', () => rebuildScene(true));
+    chkNormal.addEventListener('change', () => rebuildScene(true));
+    chkWire.addEventListener('change', () => rebuildScene(true));
+    chkWind.addEventListener('change', () => {
+      windUniforms.uWindStrength.value = chkWind.checked ? 1.0 : 0.0;
     });
 
-    document.querySelectorAll('button[data-cam]').forEach((btn) => {
-      btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+    document.querySelectorAll('#cam-bar button').forEach((btn) => {
+      btn.addEventListener('click', () => applyCameraPreset(btn.dataset.cam));
     });
 
     window.addEventListener('resize', () => {
@@ -342,42 +386,72 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    function stepAnimation(tSec) {
-      const enabled = chkWind.checked;
-      const t = enabled ? tSec : 0;
-      windUniforms.uTime.value = t;
-      if (activeStreamUniforms) activeStreamUniforms.uTime.value = t;
-      for (const m of activeAnimatedMaps) {
-        m.offset.set(t * 0.028, t * 0.019);
+    rebuildScene(false);
+
+    const startPerf = performance.now();
+    const isPaused = params.get('pause') === '1';
+
+    function tickTime(tSec) {
+      const activeT = chkWind.checked ? tSec : 0;
+      windUniforms.uTime.value = activeT;
+      skyDome.material.uniforms['time'].value = activeT;
+      if (activeGarden) {
+        activeGarden.updateWaterTime(activeT);
       }
     }
 
+    function animate() {
+      if (!isPaused) {
+        requestAnimationFrame(animate);
+        tickTime((performance.now() - startPerf) * 0.001);
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
     window.__botanicalReady = true;
-    window.__renderOnce = (t = 0.45) => {
-      stepAnimation(t);
+    window.__setTimeAndRender = (tSec) => {
+      tickTime(tSec);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    window.__setCamera = (camKey) => {
+      applyCameraPreset(camKey);
+      controls.update();
       renderer.render(scene, camera);
     };
     window.__setInspectionState = (opts = {}) => {
-      if (opts.hud !== undefined) document.body.classList.toggle('clean', !opts.hud);
-      if (opts.view !== undefined) viewSel.value = opts.view;
-      if (opts.species !== undefined) spSel.value = opts.species;
-      if (opts.leaves !== undefined) chkLeaves.checked = Boolean(opts.leaves);
-      if (opts.normal !== undefined) chkNormal.checked = Boolean(opts.normal);
-      if (opts.wind !== undefined) chkWind.checked = Boolean(opts.wind);
-      if (opts.wire !== undefined) chkWire.checked = Boolean(opts.wire);
-      rebuildScene();
-      setCameraPreset(opts.cam || 'hero');
-      window.__renderOnce(0.45);
+      let needRebuild = false;
+      if (opts.view && modeSelect.value !== opts.view) { modeSelect.value = opts.view; needRebuild = true; }
+      if (opts.species && speciesSelect.value !== opts.species) { speciesSelect.value = opts.species; needRebuild = true; }
+      if (typeof opts.leaves === 'boolean' && chkLeaves.checked !== opts.leaves) { chkLeaves.checked = opts.leaves; needRebuild = true; }
+      if (typeof opts.normal === 'boolean' && chkNormal.checked !== opts.normal) { chkNormal.checked = opts.normal; needRebuild = true; }
+      if (typeof opts.wire === 'boolean' && chkWire.checked !== opts.wire) { chkWire.checked = opts.wire; needRebuild = true; }
+      if (typeof opts.wind === 'boolean') {
+        chkWind.checked = opts.wind;
+        windUniforms.uWindStrength.value = opts.wind ? 1.0 : 0.0;
+      }
+      if (typeof opts.hud === 'boolean') {
+        document.body.classList.toggle('clean-mode', !opts.hud);
+        if (opts.hud) {
+          hudEl.classList.add('collapsed');
+          hudToggle.textContent = 'Controls';
+        }
+      }
+      if (needRebuild) rebuildScene(false);
+      if (opts.cam) applyCameraPreset(opts.cam);
+      tickTime(0.45);
+      controls.update();
+      renderer.render(scene, camera);
     };
+    window.__botanicalStats = () => statsEl.textContent;
 
-    const startTime = performance.now();
-    if (params.get('pause') === '1') {
-      window.__renderOnce(0.45);
+    if (isPaused) {
+      tickTime(0.45);
+      controls.update();
+      renderer.render(scene, camera);
     } else {
-      renderer.setAnimationLoop(() => {
-        stepAnimation((performance.now() - startTime) * 0.001);
-        renderer.render(scene, camera);
-      });
+      animate();
     }
   </script>
 </body>

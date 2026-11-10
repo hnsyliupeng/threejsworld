@@ -17,6 +17,7 @@ export interface TreeGenConfig {
 	preset: TreePresetId;
 	seed: number;
 	heightScale?: number;
+	lod?: 'hero' | 'horizon';
 }
 
 export interface RealisticTreeBuffers {
@@ -81,7 +82,7 @@ const TREE_SPECS: Record<TreePresetId, BranchSpec> = {
 		levels: 3,
 		trunkHeight: 3.1,
 		trunkRadius: 0.34,
-		buttressFlare: 0.45,
+		buttressFlare: 0.52,
 		children: [ 6, 4, 3 ],
 		lengthScale: [ 0.78, 0.70, 0.62 ],
 		radiusScale: [ 0.56, 0.52, 0.48 ],
@@ -90,32 +91,32 @@ const TREE_SPECS: Record<TreePresetId, BranchSpec> = {
 		taper: [ 0.86, 0.78, 0.82, 0.88 ],
 		forceUp: [ 0.04, 0.12, 0.18, 0.10 ],
 		startRange: [ 0.40, 0.96 ],
-		leavesPerTwig: 6,
-		leafSize: 0.88,
+		leavesPerTwig: 8,
+		leafSize: 1.05,
 		isConifer: false,
 	},
 	pine: {
 		levels: 3,
 		trunkHeight: 6.8,
 		trunkRadius: 0.22,
-		buttressFlare: 0.34,
+		buttressFlare: 0.38,
 		children: [ 22, 3, 2 ],
 		lengthScale: [ 0.33, 0.58, 0.52 ],
 		radiusScale: [ 0.38, 0.55, 0.50 ],
-		angleDeg: [ 80, 32, 28 ],
+		angleDeg: [ 76, 32, 28 ],
 		gnarliness: [ 0.04, 0.08, 0.14, 0.18 ],
 		taper: [ 0.86, 0.74, 0.80, 0.85 ],
 		forceUp: [ 0.02, 0.02, 0.06, 0.10 ],
 		startRange: [ 0.30, 0.98 ],
-		leavesPerTwig: 5,
-		leafSize: 0.74,
+		leavesPerTwig: 6,
+		leafSize: 0.86,
 		isConifer: true,
 	},
 	birch: {
 		levels: 3,
 		trunkHeight: 4.8,
 		trunkRadius: 0.16,
-		buttressFlare: 0.26,
+		buttressFlare: 0.30,
 		children: [ 9, 4, 2 ],
 		lengthScale: [ 0.48, 0.66, 0.60 ],
 		radiusScale: [ 0.46, 0.54, 0.50 ],
@@ -124,8 +125,8 @@ const TREE_SPECS: Record<TreePresetId, BranchSpec> = {
 		taper: [ 0.76, 0.76, 0.82, 0.88 ],
 		forceUp: [ 0.05, 0.04, - 0.10, - 0.20 ],
 		startRange: [ 0.34, 0.97 ],
-		leavesPerTwig: 5,
-		leafSize: 0.68,
+		leavesPerTwig: 7,
+		leafSize: 0.90,
 		isConifer: false,
 	},
 };
@@ -135,6 +136,8 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 	const spec = TREE_SPECS[ config.preset ];
 	const rng = new Mulberry32( config.seed );
 	const hScale = config.heightScale ?? 1.0;
+	const isHorizon = config.lod === 'horizon';
+	const maxLevels = isHorizon ? 2 : spec.levels;
 
 	const bPos: number[] = [];
 	const bNrm: number[] = [];
@@ -172,26 +175,26 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 			const hw = cardSize * 0.5;
 			const hh = cardSize * 0.5;
 
-			// UpNormal crown-outward vector (eliminates dark undersides while staying FrontSide)
+			// UpNormal crown-outward vector blended with subtle sun/crown relief (preserves upward dome bias >= 0.40)
 			const upOut = norm3(
-				ox * 0.42 + rng.signed() * 0.22,
-				Math.max( 0.55, oy - crownCenterY * 0.42 + 0.85 ),
-				oz * 0.42 + rng.signed() * 0.22,
+				ox * 0.48 + rng.signed() * 0.24,
+				Math.max( 0.72, oy - crownCenterY * 0.32 + 0.95 ),
+				oz * 0.48 + rng.signed() * 0.24,
 			);
 
-			// Natural volumetric foliage palette variation (brighter sunlit top, richer interior)
-			const topShade = 0.84 + 0.26 * Math.min( 1, Math.max( 0, ( oy - crownCenterY * 0.4 ) / ( crownCenterY * 0.8 ) ) );
-			const hueVar = rng.range( - 0.06, 0.07 );
-			const cr = Math.min( 1, Math.max( 0.45, topShade + hueVar ) );
-			const cg = Math.min( 1, Math.max( 0.50, topShade ) );
-			const cb = Math.min( 1, Math.max( 0.40, topShade - 0.05 ) );
+			// Natural volumetric foliage palette variation (deep shadowed interior -> warm sunlit golden crowns)
+			const topShade = 0.64 + 0.36 * Math.min( 1, Math.max( 0, ( oy - crownCenterY * 0.45 ) / ( crownCenterY * 0.75 ) ) );
+			const hueVar = rng.range( - 0.04, 0.07 );
+			const cr = Math.min( 1.0, Math.max( 0.32, topShade + hueVar + 0.05 ) );
+			const cg = Math.min( 1.0, Math.max( 0.38, topShade ) );
+			const cb = Math.min( 0.70, Math.max( 0.18, topShade * 0.74 - 0.06 ) );
 			const windW = Math.min( 1, Math.max( 0.1, oy / ( spec.trunkHeight * hScale * 1.4 ) ) );
 
-			// 2 intersecting oblique 3D planes (tilted across canopy & horizontal branch planes — never hanging curtains!)
-			for ( let plane = 0; plane < 2; plane ++ ) {
+			// 2 intersecting oblique 3D planes (curved 3x2 cupped card on hero, crisp 2x2 on horizon LOD)
+			const nPlanes = isHorizon ? 1 : 2;
+			for ( let plane = 0; plane < nPlanes; plane ++ ) {
 
 				const yaw = az + plane * 1.15;
-				// Conifer needles form horizontal pad boughs; deciduous crowns spread across full 3D sphere angles
 				const pitch = spec.isConifer
 					? ( plane === 0 ? rng.range( 1.05, 1.38 ) : rng.range( 0.65, 1.05 ) )
 					: ( plane === 0 ? rng.range( 0.55, 1.25 ) : rng.range( - 1.15, - 0.45 ) );
@@ -202,36 +205,56 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 				const axisFwd = norm3( ...cross3( uBase, vRaw ) );
 				const uAxis = norm3( ...rotAxis( uBase, axisFwd, roll ) );
 				const vAxis = norm3( ...rotAxis( vRaw, axisFwd, roll ) );
+				const nAxis = norm3( ...cross3( uAxis, vAxis ) );
+				const cupAmp = cardSize * ( spec.isConifer ? 0.08 : 0.14 );
 
-				const quad: Array<[ number, number, number, number ]> = [
-					[ - hw, - hh, 0, 0 ],
-					[ hw, - hh, 1, 0 ],
-					[ hw, hh, 1, 1 ],
-					[ - hw, hh, 0, 1 ],
-				];
-
+				const nu = isHorizon ? 1 : 2;
+				const nv = 1;
+				const uStride = nu + 1;
+				const vCount = nv + 1;
+				const ptsPerSide = uStride * vCount;
 				const baseV = lPos.length / 3;
 				for ( let side = 0; side < 2; side ++ ) {
 
-					for ( const [ lx, ly, u, v ] of quad ) {
+					for ( let iy = 0; iy <= nv; iy ++ ) {
 
-						lPos.push(
-							ox + uAxis[ 0 ] * lx + vAxis[ 0 ] * ly,
-							oy + uAxis[ 1 ] * lx + vAxis[ 1 ] * ly,
-							oz + uAxis[ 2 ] * lx + vAxis[ 2 ] * ly,
-						);
-						lNrm.push( upOut[ 0 ], upOut[ 1 ], upOut[ 2 ] );
-						lUv.push( u, v );
-						lCol.push( cr, cg, cb );
-						lWind.push( windW );
+						const v = iy / nv;
+						const ly = ( v - 0.5 ) * cardSize;
+						for ( let ix = 0; ix <= nu; ix ++ ) {
+
+							const u = ix / nu;
+							const lx = ( u - 0.5 ) * cardSize;
+							const nx = ( u - 0.5 ) * 2;
+							const arch = - cupAmp * ( nx * nx * 0.85 );
+							lPos.push(
+								ox + uAxis[ 0 ] * lx + vAxis[ 0 ] * ly + nAxis[ 0 ] * arch,
+								oy + uAxis[ 1 ] * lx + vAxis[ 1 ] * ly + nAxis[ 1 ] * arch,
+								oz + uAxis[ 2 ] * lx + vAxis[ 2 ] * ly + nAxis[ 2 ] * arch,
+							);
+							lNrm.push( upOut[ 0 ], upOut[ 1 ], upOut[ 2 ] );
+							lUv.push( u, v );
+							lCol.push( cr, cg, cb );
+							lWind.push( windW );
+
+						}
 
 					}
 
 				}
-				lIdx.push(
-					baseV, baseV + 1, baseV + 2, baseV, baseV + 2, baseV + 3,
-					baseV + 4, baseV + 6, baseV + 5, baseV + 4, baseV + 7, baseV + 6,
-				);
+				for ( let iy = 0; iy < nv; iy ++ ) {
+
+					for ( let ix = 0; ix < nu; ix ++ ) {
+
+						const a = baseV + iy * uStride + ix;
+						const b = a + 1;
+						const c = a + uStride;
+						const d = c + 1;
+						lIdx.push( a, b, d, a, d, c );
+						lIdx.push( a + ptsPerSide, d + ptsPerSide, b + ptsPerSide, a + ptsPerSide, c + ptsPerSide, d + ptsPerSide );
+
+					}
+
+				}
 				leafCount ++;
 
 			}
@@ -249,8 +272,8 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 	): void => {
 
 		branchCount ++;
-		const segs = level === 0 ? 11 : level === 1 ? 7 : 5;
-		const radialSegs = level === 0 ? 10 : level === 1 ? 7 : 5;
+		const segs = isHorizon ? ( level === 0 ? 7 : 4 ) : ( level === 0 ? 15 : level === 1 ? 8 : 5 );
+		const radialSegs = isHorizon ? ( level === 0 ? 8 : 5 ) : ( level === 0 ? 14 : level === 1 ? 9 : 6 );
 		const gnarl = spec.gnarliness[ level ]!;
 		const taper = spec.taper[ level ]!;
 		const forceUp = spec.forceUp[ level ]!;
@@ -382,10 +405,10 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 
 		}
 
-		if ( level < spec.levels ) {
+		if ( level < maxLevels ) {
 
-			const nChildren = spec.children[ level ]!;
-			const startFrac = level === 0 ? spec.startRange[ 0 ] : 0.28;
+			const nChildren = isHorizon ? Math.max( 2, Math.round( spec.children[ level ]! * 0.65 ) ) : spec.children[ level ]!;
+			const startFrac = level === 0 ? ( isHorizon ? 0.18 : spec.startRange[ 0 ] ) : 0.28;
 			const endFrac = level === 0 ? spec.startRange[ 1 ] : 0.96;
 			const spreadDeg = spec.angleDeg[ level ]!;
 
@@ -434,12 +457,12 @@ export function generateRealisticTree( config: TreeGenConfig ): RealisticTreeBuf
 		}
 
 		// Attach dense foliage sprays along outer branches and twigs
-		if ( level >= spec.levels - 1 ) {
+		if ( level >= maxLevels - 1 ) {
 
-			appendLeafSpray( pts[ pts.length - 1 ]!, dirs[ dirs.length - 1 ]!, spec.leafSize * hScale, spec.leavesPerTwig );
-			if ( level === spec.levels ) {
+			appendLeafSpray( pts[ pts.length - 1 ]!, dirs[ dirs.length - 1 ]!, spec.leafSize * hScale * ( isHorizon ? 1.35 : 1.0 ), isHorizon ? Math.max( 3, Math.round( spec.leavesPerTwig * 0.6 ) ) : spec.leavesPerTwig );
+			if ( level === maxLevels ) {
 
-				appendLeafSpray( pts[ Math.floor( segs * 0.55 ) ]!, dirs[ Math.floor( segs * 0.55 ) ]!, spec.leafSize * 0.85 * hScale, 2 );
+				appendLeafSpray( pts[ Math.floor( segs * 0.55 ) ]!, dirs[ Math.floor( segs * 0.55 ) ]!, spec.leafSize * 0.85 * hScale, isHorizon ? 1 : 2 );
 
 			}
 
@@ -974,7 +997,7 @@ export function buildFlowerClump( preset: FlowerPresetId, seed = 17, heightMeter
 							head[ 1 ] + 0.004 + yOff,
 							head[ 2 ] + sa * dist + ca * s * wh.width * wEnv,
 						],
-						c: [ 0.38 + 0.48 * edge, 0.03 + 0.25 * edge * edge, 0.09 + 0.24 * edge * edge ],
+						c: [ 0.56 + 0.42 * edge, 0.14 + 0.36 * edge * edge, 0.24 + 0.34 * edge * edge ],
 						w: 1.0,
 					};
 
@@ -1050,7 +1073,7 @@ export function buildFlowerClump( preset: FlowerPresetId, seed = 17, heightMeter
 						head[ 1 ] + yOff,
 						head[ 2 ] + sa * dist + ca * s * pW * widthEnv,
 					],
-					c: [ 0.45 + 0.46 * flame, 0.025 + 0.24 * flame * ( Math.abs( s ) * 0.45 + 0.55 ), 0.02 + 0.04 * flame ],
+					c: [ 0.72 + 0.26 * flame, 0.15 + 0.36 * flame * ( Math.abs( s ) * 0.35 + 0.65 ), 0.015 + 0.035 * flame ],
 					w: 1.0,
 				};
 
@@ -1164,12 +1187,12 @@ export function buildGrassClump( preset: GrassPresetId, seed = 91, bladeCount = 
 			const tx = - Math.sin( tAngle );
 			const tz = Math.cos( tAngle );
 
-			// Lush emerald-olive meadow chlorophyll gradient with root AO
-			const ao = 0.28 + 0.72 * Math.min( 1, t * 2.2 );
-			const tipYellow = isDryTip ? Math.pow( t, 2.0 ) * 0.48 : Math.pow( t, 2.8 ) * 0.18;
-			const rCol = ( 0.12 + 0.20 * t + tipYellow * 0.55 ) * ao;
-			const gCol = ( 0.34 + 0.24 * t + tipYellow * 0.10 ) * ao;
-			const bCol = ( 0.07 + 0.05 * t ) * ao;
+			// Rich vibrant meadow chlorophyll gradient (low blue, warm golden sunlight catch)
+			const ao = 0.26 + 0.74 * Math.min( 1, t * 2.1 );
+			const tipYellow = isDryTip ? Math.pow( t, 2.0 ) * 0.36 : Math.pow( t, 2.6 ) * 0.16;
+			const rCol = ( 0.085 + 0.145 * t + tipYellow * 0.42 ) * ao;
+			const gCol = ( 0.215 + 0.185 * t + tipYellow * 0.12 ) * ao;
+			const bCol = ( 0.015 + 0.018 * t ) * ao;
 
 			const nxL = norm3( tx * - 0.45 - ca * 0.2, 0.82, tz * - 0.45 - sa * 0.2 );
 			const nxM = norm3( - ca * 0.25, 0.96, - sa * 0.25 );
@@ -1274,6 +1297,285 @@ export function buildGrassClump( preset: GrassPresetId, seed = 91, bladeCount = 
 			}
 
 		}
+
+	}
+
+	return {
+		positions: new Float32Array( pos ),
+		normals: new Float32Array( nrm ),
+		uvs: new Float32Array( uv ),
+		colors: new Float32Array( col ),
+		windWeights: new Float32Array( wind ),
+		indices: new Uint32Array( idx ),
+	};
+
+}
+
+/**
+ * Low, soft-arching irregular wild meadow grass cluster (16 blades spread over r=0.24m)
+ * designed for 3,000+ instanced meadow placement (~48,000 continuous lawn blades).
+ */
+export function buildMeadowTuft( seed = 515, bladeCount = 12 ): MeshBuffers {
+
+	const rng = new Mulberry32( seed );
+	const pos: number[] = [];
+	const nrm: number[] = [];
+	const uv: number[] = [];
+	const col: number[] = [];
+	const wind: number[] = [];
+	const idx: number[] = [];
+
+	const segs = 3;
+	for ( let b = 0; b < bladeCount; b ++ ) {
+
+		const az = rng.next() * Math.PI * 2;
+		const rOff = Math.sqrt( rng.next() ) * 0.24;
+		const ox = Math.cos( az ) * rOff;
+		const oz = Math.sin( az ) * rOff;
+		const leanAz = az + rng.signed() * 1.1;
+		const bH = rng.range( 0.14, 0.32 );
+		const bW = rng.range( 0.012, 0.021 );
+		const bend = rng.range( 0.24, 0.56 ) * bH;
+		const dryHue = rng.next() < 0.22 ? 0.28 : 0.0;
+
+		const ca = Math.cos( leanAz );
+		const sa = Math.sin( leanAz );
+		const tx = - sa;
+		const tz = ca;
+		const baseV = pos.length / 3;
+
+		for ( let s = 0; s <= segs; s ++ ) {
+
+			const t = s / segs;
+			const reach = bend * Math.pow( t, 1.85 );
+			const y = - 0.02 + bH * ( t - 0.22 * t * t * t );
+			const w = bW * Math.pow( Math.max( 0.04, 1.0 - t ), 0.68 );
+			const midDepth = w * 0.32;
+
+			const cx = ox + ca * reach;
+			const cz = oz + sa * reach;
+
+			const ao = 0.25 + 0.75 * Math.min( 1, t * 2.0 );
+			const warmTip = Math.pow( t, 2.2 ) * ( 0.18 + dryHue );
+			const rCol = ( 0.075 + 0.135 * t + warmTip * 0.40 ) * ao;
+			const gCol = ( 0.195 + 0.175 * t + warmTip * 0.12 ) * ao;
+			const bCol = ( 0.014 + 0.014 * t ) * ao;
+
+			const nxL = norm3( tx * - 0.42 - ca * 0.2, 0.85, tz * - 0.42 - sa * 0.2 );
+			const nxM = norm3( - ca * 0.22, 0.96, - sa * 0.22 );
+			const nxR = norm3( tx * 0.42 - ca * 0.2, 0.85, tz * 0.42 - sa * 0.2 );
+
+			pos.push( cx - tx * w, y, cz - tz * w );
+			nrm.push( nxL[ 0 ], nxL[ 1 ], nxL[ 2 ] );
+			uv.push( 0, t );
+			col.push( rCol, gCol, bCol );
+			wind.push( t );
+
+			pos.push( cx + ca * midDepth, y + midDepth * 0.3, cz + sa * midDepth );
+			nrm.push( nxM[ 0 ], nxM[ 1 ], nxM[ 2 ] );
+			uv.push( 0.5, t );
+			col.push( rCol * 1.06, gCol * 1.06, bCol * 1.04 );
+			wind.push( t );
+
+			pos.push( cx + tx * w, y, cz + tz * w );
+			nrm.push( nxR[ 0 ], nxR[ 1 ], nxR[ 2 ] );
+			uv.push( 1, t );
+			col.push( rCol, gCol, bCol );
+			wind.push( t );
+
+		}
+
+		for ( let s = 0; s < segs; s ++ ) {
+
+			const r0 = baseV + s * 3;
+			const r1 = r0 + 3;
+			if ( s < segs - 1 ) {
+
+				idx.push(
+					r0, r0 + 1, r1, r0 + 1, r1 + 1, r1,
+					r0 + 1, r0 + 2, r1 + 1, r0 + 2, r1 + 2, r1 + 1,
+				);
+
+			} else {
+
+				idx.push( r0, r0 + 1, r1 + 1, r0 + 1, r0 + 2, r1 + 1 );
+
+			}
+
+		}
+
+	}
+
+	return {
+		positions: new Float32Array( pos ),
+		normals: new Float32Array( nrm ),
+		uvs: new Float32Array( uv ),
+		colors: new Float32Array( col ),
+		windWeights: new Float32Array( wind ),
+		indices: new Uint32Array( idx ),
+	};
+
+}
+
+/**
+ * Arched 3D Woodland Fern Rosette (`Polystichum`) for rockery crevices, shore boulders & tree bases.
+ */
+export function buildFernRosette( seed = 707, frondCount = 9 ): MeshBuffers {
+
+	const rng = new Mulberry32( seed );
+	const pos: number[] = [];
+	const nrm: number[] = [];
+	const uv: number[] = [];
+	const col: number[] = [];
+	const wind: number[] = [];
+	const idx: number[] = [];
+
+	const vSegs = 6;
+	const uSegs = 2;
+
+	for ( let f = 0; f < frondCount; f ++ ) {
+
+		const az = f * GOLDEN_ANGLE + rng.signed() * 0.25;
+		const len = rng.range( 0.42, 0.66 );
+		const wid = len * 0.34;
+		const elevBase = f < 3 ? 0.92 : rng.range( 0.52, 0.78 );
+		const droop = rng.range( 0.24, 0.38 );
+
+		const ca = Math.cos( az );
+		const sa = Math.sin( az );
+		const tx = - sa;
+		const tz = ca;
+
+		const baseV = pos.length / 3;
+		const rowPts: Array<[ number, number, number ]> = [];
+
+		for ( let iv = 0; iv <= vSegs; iv ++ ) {
+
+			const v = iv / vSegs;
+			const rReach = len * ( v * 0.92 );
+			const yReach = len * Math.sin( v * elevBase * 1.45 ) * 0.62 - droop * len * v * v;
+			rowPts.push( [ ca * rReach, - 0.02 + yReach, sa * rReach ] );
+
+		}
+
+		for ( let side = 0; side < 2; side ++ ) {
+
+			for ( let iv = 0; iv <= vSegs; iv ++ ) {
+
+				const v = iv / vSegs;
+				const ctr = rowPts[ iv ]!;
+				const next = rowPts[ Math.min( vSegs, iv + 1 ) ]!;
+				const prev = rowPts[ Math.max( 0, iv - 1 ) ]!;
+				const tang = norm3( next[ 0 ] - prev[ 0 ], next[ 1 ] - prev[ 1 ], next[ 2 ] - prev[ 2 ] );
+				const upN = norm3( - tang[ 1 ] * ca * 0.5, 0.90, - tang[ 1 ] * sa * 0.5 );
+				const shade = 0.62 + 0.38 * v;
+
+				for ( let iu = 0; iu <= uSegs; iu ++ ) {
+
+					const u = iu / uSegs;
+					const s = ( u - 0.5 ) * 2;
+					const vFold = - Math.abs( s ) * wid * 0.14;
+					pos.push(
+						ctr[ 0 ] + tx * s * wid * 0.5,
+						ctr[ 1 ] + vFold,
+						ctr[ 2 ] + tz * s * wid * 0.5,
+					);
+					nrm.push( upN[ 0 ], upN[ 1 ], upN[ 2 ] );
+					uv.push( u, v );
+					col.push( shade * 0.98, shade * 1.0, shade * 0.70 );
+					wind.push( v );
+
+				}
+
+			}
+
+		}
+
+		const stride = uSegs + 1;
+		const backOff = ( vSegs + 1 ) * stride;
+		for ( let iv = 0; iv < vSegs; iv ++ ) {
+
+			for ( let iu = 0; iu < uSegs; iu ++ ) {
+
+				const a = baseV + iv * stride + iu;
+				const b = a + 1;
+				const c = a + stride;
+				const d = c + 1;
+				idx.push( a, d, b, a, c, d );
+				idx.push( a + backOff, b + backOff, d + backOff, a + backOff, d + backOff, c + backOff );
+
+			}
+
+		}
+
+	}
+
+	return {
+		positions: new Float32Array( pos ),
+		normals: new Float32Array( nrm ),
+		uvs: new Float32Array( uv ),
+		colors: new Float32Array( col ),
+		windWeights: new Float32Array( wind ),
+		indices: new Uint32Array( idx ),
+	};
+
+}
+
+/**
+ * Dense multi-lobed Woodland Understory Shrub (`1.1m..1.6m` bushy crown)
+ * built from 42 fine multi-leaf cards (`0.38..0.54m`, zero giant billboard silhouettes).
+ */
+export function buildWoodlandShrub( seed = 828, cardCount = 42 ): MeshBuffers {
+
+	const rng = new Mulberry32( seed );
+	const pos: number[] = [];
+	const nrm: number[] = [];
+	const uv: number[] = [];
+	const col: number[] = [];
+	const wind: number[] = [];
+	const idx: number[] = [];
+
+	for ( let c = 0; c < cardCount; c ++ ) {
+
+		const az = c * GOLDEN_ANGLE + rng.signed() * 0.45;
+		const r = Math.sqrt( ( c + 0.5 ) / cardCount ) * 0.72;
+		const ox = Math.cos( az ) * r;
+		const oz = Math.sin( az ) * r;
+		const oy = 0.14 + ( 1.0 - r * 0.72 ) * rng.range( 0.20, 0.85 );
+		const sz = rng.range( 0.38, 0.54 );
+		const hw = sz * 0.5;
+		const yaw = az + rng.signed() * 0.85;
+		const pitch = rng.range( 0.42, 1.15 );
+
+		const upOut = norm3( ox * 0.48, Math.max( 0.65, oy ), oz * 0.48 );
+		const shade = 0.52 + 0.48 * Math.min( 1, oy / 0.95 );
+		const uAxis: [ number, number, number ] = [ Math.cos( yaw ), 0, - Math.sin( yaw ) ];
+		const vAxis: [ number, number, number ] = [ Math.sin( yaw ) * Math.sin( pitch ), Math.cos( pitch ), Math.cos( yaw ) * Math.sin( pitch ) ];
+		const w = Math.min( 1, oy / 1.0 );
+
+		const baseV = pos.length / 3;
+		const quad: Array<[ number, number, number, number ]> = [
+			[ - hw, - hw, 0, 0 ], [ hw, - hw, 1, 0 ], [ hw, hw, 1, 1 ], [ - hw, hw, 0, 1 ],
+		];
+		for ( let side = 0; side < 2; side ++ ) {
+
+			for ( const [ lx, ly, u, v ] of quad ) {
+
+				pos.push(
+					ox + uAxis[ 0 ] * lx + vAxis[ 0 ] * ly,
+					oy + uAxis[ 1 ] * lx + vAxis[ 1 ] * ly,
+					oz + uAxis[ 2 ] * lx + vAxis[ 2 ] * ly,
+				);
+				nrm.push( upOut[ 0 ], upOut[ 1 ], upOut[ 2 ] );
+				uv.push( u, v );
+				col.push( shade * 0.96, shade * 0.98, shade * 0.68 );
+				wind.push( w );
+
+			}
+
+		}
+		idx.push( baseV, baseV + 1, baseV + 2, baseV, baseV + 2, baseV + 3 );
+		idx.push( baseV + 4, baseV + 6, baseV + 5, baseV + 4, baseV + 7, baseV + 6 );
 
 	}
 
