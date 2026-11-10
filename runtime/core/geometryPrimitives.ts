@@ -146,11 +146,11 @@ export function buildTaperedSweep( stations: SweepStation[], radialSegments = 10
 			const c = ( s + 1 ) * ringVerts + j;
 			const d = c + 1;
 			indices[ ptr ++ ] = a;
-			indices[ ptr ++ ] = c;
-			indices[ ptr ++ ] = b;
 			indices[ ptr ++ ] = b;
 			indices[ ptr ++ ] = c;
+			indices[ ptr ++ ] = b;
 			indices[ ptr ++ ] = d;
+			indices[ ptr ++ ] = c;
 
 		}
 

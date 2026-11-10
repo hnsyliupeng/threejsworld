@@ -46,17 +46,24 @@ threejsworld/
 │   │   ├── shapedSurface.ts
 │   │   ├── geometryPrimitives.ts
 │   │   ├── botanicalSkeleton.ts
+│   │   ├── botanicalFlora.ts              # Realistic trees (oak/pine/birch), 3D flowers (daisy/rose/tulip) & grass
+│   │   ├── floraTextures.ts               # Surface::shaped bark/soil & leaf/needle atlases + coverage mipmaps
 │   │   └── clusterDag.ts
 │   └── three/                             # Three.js / WebGPU wrapper layer
 │       ├── createThreeSurface.ts
-│       └── botanicalAsset.ts
+│       ├── botanicalAsset.ts
+│       └── createFloraScene.ts            # Procedural sky/PMREM IBL, wind shader hook & botanical scene builders
 ├── examples/                              # Verified S3S-World v2 specs & interactive Three.js showcase
 │   ├── vintage_camera.spec.json           # Hard-surface + leather + brushed chrome + SDF pocket + symmetric eyelets
 │   ├── alpine_pine_grove.spec.json        # Conifer spiral skeleton + upNormalCards + Cluster DAG LOD0-4 + impostors
-│   └── world_showcase.html                # Live interactive Three.js procedural grove + mossy boulder + ablation demo
+│   ├── world_showcase.html                # Live interactive Three.js procedural grove + mossy boulder + ablation demo
+│   └── botanical_inspector.html           # Interactive HTML visual inspector for Trees, Flowers & Grass + 6-pass cams
+├── tools/
+│   ├── serve_app.mjs                      # Zero-bundler HTTP server (Node TypeScript strip + /vendor/three/)
+│   └── capture_screenshots.mjs            # Headless SwiftShader WebGL2 10-shot visual verification & console audit
 └── tests/
     ├── test_forge_world.py                # Comprehensive Python stdlib unit & integration gate tests
-    └── test_runtime.mjs                   # Native Node 22 TypeScript runtime core determinism & math tests
+    └── test_runtime.mjs                   # Native Node 22 TypeScript runtime core determinism, winding & PBR tests
 ```
 
 ---
@@ -95,12 +102,22 @@ python3 forge_world/pbr_surface_synth.py --preset granite-cracks-moss --size 128
 python3 forge_world/geometry_gates.py --spec examples/vintage_camera.spec.json --mesh tmp/sample_mesh.json
 ```
 
-### 3. Run Automated Verification Tests
+### 3. Run the Interactive Botanical Visual Inspector (`Trees, Flowers & Grass`)
 
 ```bash
-# Run Python Forge & Gates test suite
-python3 -m unittest discover -s tests -v
+# Install runtime dependency (Three.js only; zero bundler required)
+npm install --no-package-lock
 
-# Run native TypeScript pure-data core tests (Node 22+ built-in type stripping, zero npm install)
-node --experimental-strip-types tests/test_runtime.mjs
+# Start zero-bundler dev server on 0.0.0.0:4173 (/examples/botanical_inspector.html)
+npm run serve
+
+# Run automated 10-shot headless WebGL2 visual audit (writes .threejsworld/screenshots/*.png)
+node tools/capture_screenshots.mjs
+```
+
+### 4. Run Automated Verification Tests
+
+```bash
+# Run both Python Forge/Gates tests and Node 22 TypeScript core tests
+npm test
 ```

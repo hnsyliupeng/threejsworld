@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ThreeJSWorld — Photorealistic Trees, Flowers & Grass Visual Inspector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0e1318; color: #e6edf3; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    #hud {
+      position: fixed; top: 12px; left: 12px; z-index: 20; width: 310px;
+      background: rgba(13, 18, 24, 0.86); border: 1px solid #2a3746; border-radius: 10px;
+      padding: 12px 14px; backdrop-filter: blur(8px); font-size: 12px;
+    }
+    body.clean #hud { display: none; }
+    h1 { font-size: 13.5px; font-weight: 700; color: #7ee787; margin-bottom: 4px; }
+    .sub { color: #8ea1b4; font-size: 11px; margin-bottom: 10px; line-height: 1.35; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 8px; }
+    select, button {
+      background: #1a232e; color: #e6edf3; border: 1px solid #334355; border-radius: 6px;
+      padding: 4px 8px; font-size: 11.5px; cursor: pointer;
+    }
+    button:hover { background: #263344; }
+    .cam-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 6px; }
+    .section { border-top: 1px solid #24303e; margin-top: 8px; padding-top: 8px; }
+    #stats { font-family: ui-monospace, monospace; font-size: 10.5px; color: #9cb0c4; margin-top: 8px; line-height: 1.4; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <h1>ThreeJSWorld Botanical Suite</h1>
+    <div class="sub">Procedural Trees, Flowers &amp; Grass — Surface::shaped PBR, upNormalCards &amp; coverage mipmaps</div>
+
+    <div class="row">
+      <label for="viewMode">Asset Mode</label>
+      <select id="viewMode">
+        <option value="all">Garden (All Flora)</option>
+        <option value="tree">Tree Isolation</option>
+        <option value="flower">Flower Macro</option>
+        <option value="grass">Grass Turf Macro</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label for="speciesSelect">Species Preset</label>
+      <select id="speciesSelect">
+        <option value="oak">Oak / Daisy / Fescue</option>
+        <option value="pine">Pine / Rose / Foxtail</option>
+        <option value="birch">Birch / Tulip / Sedge</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <div class="row"><label><input type="checkbox" id="chkLeaves" checked /> Leaves (--without leaves)</label></div>
+      <div class="row"><label><input type="checkbox" id="chkNormal" checked /> Surface Normal Maps</label></div>
+      <div class="row"><label><input type="checkbox" id="chkWind" checked /> Wind Gust Shader</label></div>
+      <div class="row"><label><input type="checkbox" id="chkWire" /> Wireframe Topology</label></div>
+    </div>
+
+    <div class="section">
+      <div style="font-weight:600;margin-bottom:4px;">Camera Angles (6-Pass Inspection)</div>
+      <div class="cam-grid">
+        <button data-cam="hero">Hero 3/4</button>
+        <button data-cam="closeup">Close-Up Macro</button>
+        <button data-cam="back">Opposite Rear</button>
+        <button data-cam="top">Top Elevation</button>
+      </div>
+    </div>
+
+    <div id="stats">Loading procedural flora…</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import {
+      buildProceduralSkyDomeAndPMREM,
+      buildTreeMeshGroup,
+      buildFlowerMeshGroup,
+      buildGrassFieldGroup,
+      buildTerrainAndBoulder,
+    } from '/runtime/three/createFloraScene.ts';
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('hud') === '0') document.body.classList.add('clean');
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2('#9bb6cf', 0.011);
+
+    const { skyDome, envMap } = buildProceduralSkyDomeAndPMREM(renderer);
+    scene.add(skyDome);
+    scene.environment = envMap;
+    scene.environmentIntensity = 0.65;
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.03, 220);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = false;
+
+    const hemi = new THREE.HemisphereLight('#d6ebff', '#3a492b', 0.72);
+    scene.add(hemi);
+
+    const sun = new THREE.DirectionalLight('#fff2da', 2.7);
+    sun.position.set(11, 13, 9);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 45;
+    sun.shadow.camera.left = -10;
+    sun.shadow.camera.right = 10;
+    sun.shadow.camera.top = 12;
+    sun.shadow.camera.bottom = -4;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.025;
+    scene.add(sun);
+
+    const windUniforms = { uTime: { value: 0 }, uWindStrength: { value: 1.0 } };
+
+    const viewSel = document.getElementById('viewMode');
+    const spSel = document.getElementById('speciesSelect');
+    const chkLeaves = document.getElementById('chkLeaves');
+    const chkNormal = document.getElementById('chkNormal');
+    const chkWind = document.getElementById('chkWind');
+    const chkWire = document.getElementById('chkWire');
+
+    if (params.get('view')) viewSel.value = params.get('view');
+    if (params.get('species')) spSel.value = params.get('species');
+    if (params.get('leaves') === '0') chkLeaves.checked = false;
+    if (params.get('normal') === '0') chkNormal.checked = false;
+    if (params.get('wind') === '0') chkWind.checked = false;
+    if (params.get('wire') === '1') chkWire.checked = true;
+
+    let activeGroup = new THREE.Group();
+    scene.add(activeGroup);
+
+    const TREE_MAP = { oak: 'oak', pine: 'pine', birch: 'birch' };
+    const FLOWER_MAP = { oak: 'daisy', pine: 'rose', birch: 'tulip' };
+    const GRASS_MAP = { oak: 'fescue', pine: 'foxtail', birch: 'sedge' };
+
+    function setCameraPreset(camKey) {
+      const mode = viewSel.value;
+      if (mode === 'flower') {
+        if (camKey === 'closeup') {
+          camera.position.set(0.24, 0.62, 0.32);
+          controls.target.set(0, 0.46, 0);
+        } else if (camKey === 'back') {
+          camera.position.set(-0.35, 0.52, -0.42);
+          controls.target.set(0, 0.34, 0);
+        } else if (camKey === 'top') {
+          camera.position.set(0.02, 0.88, 0.14);
+          controls.target.set(0, 0.44, 0);
+        } else {
+          camera.position.set(0.45, 0.50, 0.52);
+          controls.target.set(0, 0.30, 0);
+        }
+      } else if (mode === 'grass') {
+        if (camKey === 'closeup') {
+          camera.position.set(0.42, 0.38, 0.55);
+          controls.target.set(0, 0.22, 0);
+        } else if (camKey === 'back') {
+          camera.position.set(-0.85, 0.46, -0.85);
+          controls.target.set(0, 0.20, 0);
+        } else if (camKey === 'top') {
+          camera.position.set(0, 1.55, 0.35);
+          controls.target.set(0, 0.12, 0);
+        } else {
+          camera.position.set(1.05, 0.62, 1.15);
+          controls.target.set(0, 0.22, 0);
+        }
+      } else if (mode === 'tree') {
+        const sp = spSel.value;
+        const midY = sp === 'pine' ? 3.8 : 2.9;
+        if (camKey === 'closeup') {
+          camera.position.set(1.8, 1.45, 2.2);
+          controls.target.set(0, 1.35, 0);
+        } else if (camKey === 'back') {
+          camera.position.set(-5.8, midY + 1.0, -7.2);
+          controls.target.set(0, midY, 0);
+        } else if (camKey === 'top') {
+          camera.position.set(0.2, 11.5, 2.5);
+          controls.target.set(0, midY, 0);
+        } else {
+          camera.position.set(6.4, midY + 0.9, 7.6);
+          controls.target.set(0, midY, 0);
+        }
+      } else {
+        // Garden Showcase (All Flora)
+        if (camKey === 'closeup') {
+          camera.position.set(1.35, 0.72, 3.35);
+          controls.target.set(0.4, 0.34, 1.8);
+        } else if (camKey === 'back') {
+          camera.position.set(-6.5, 3.8, -7.8);
+          controls.target.set(0, 2.4, 0);
+        } else if (camKey === 'top') {
+          camera.position.set(0.5, 13.5, 3.2);
+          controls.target.set(0, 2.0, 0);
+        } else {
+          camera.position.set(5.4, 2.6, 8.2);
+          controls.target.set(0.2, 2.1, 0.4);
+        }
+      }
+      controls.update();
+    }
+
+    function rebuildScene() {
+      scene.remove(activeGroup);
+      activeGroup = new THREE.Group();
+
+      const mode = viewSel.value;
+      const key = spSel.value;
+      const showLeaves = chkLeaves.checked;
+      const useNormal = chkNormal.checked;
+      const wireframe = chkWire.checked;
+      windUniforms.uWindStrength.value = chkWind.checked ? 1.0 : 0.0;
+
+      const { ground, rock } = buildTerrainAndBoulder(useNormal, wireframe);
+      activeGroup.add(ground);
+
+      if (mode === 'tree') {
+        const tree = buildTreeMeshGroup(TREE_MAP[key], 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe });
+        activeGroup.add(tree);
+      } else if (mode === 'flower') {
+        const flMain = buildFlowerMeshGroup(FLOWER_MAP[key], 21, windUniforms, { heightMeters: 0.48, useNormalMap: useNormal, wireframe });
+        const flSide1 = buildFlowerMeshGroup(FLOWER_MAP[key], 29, windUniforms, { heightMeters: 0.39, useNormalMap: useNormal, wireframe });
+        flSide1.position.set(-0.14, 0, 0.08);
+        flSide1.rotation.y = 1.2;
+        const flSide2 = buildFlowerMeshGroup(FLOWER_MAP[key], 37, windUniforms, { heightMeters: 0.42, useNormalMap: useNormal, wireframe });
+        flSide2.position.set(0.15, 0, -0.06);
+        flSide2.rotation.y = -0.8;
+        const baseGrass = buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 16, radius: 0.45, seed: 88, wireframe });
+        activeGroup.add(flMain, flSide1, flSide2, baseGrass);
+      } else if (mode === 'grass') {
+        const g1 = buildGrassFieldGroup(GRASS_MAP[key], windUniforms, { clumpCount: 55, radius: 0.85, seed: 55, wireframe });
+        activeGroup.add(g1);
+      } else {
+        // Mixed Photorealistic Botanical Garden (Oak + Pine + Birch + Flowers + Meadow Grass + Mossy Boulder)
+        const oak = buildTreeMeshGroup('oak', 101, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 1.0 });
+        oak.position.set(-0.6, 0, -0.8);
+        const pine = buildTreeMeshGroup('pine', 202, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 0.96 });
+        pine.position.set(3.8, 0, -2.5);
+        const birch = buildTreeMeshGroup('birch', 303, windUniforms, { showLeaves, useNormalMap: useNormal, wireframe, heightScale: 0.95 });
+        birch.position.set(-4.2, 0, -2.1);
+        activeGroup.add(oak, pine, birch, rock);
+
+        // Foreground grass meadow surrounding the clearing
+        activeGroup.add(buildGrassFieldGroup('fescue', windUniforms, { clumpCount: 95, minRadius: 0.35, radius: 4.5, seed: 71, wireframe }));
+        activeGroup.add(buildGrassFieldGroup('foxtail', windUniforms, { clumpCount: 38, minRadius: 0.6, radius: 4.2, seed: 83, wireframe }));
+        activeGroup.add(buildGrassFieldGroup('sedge', windUniforms, { clumpCount: 45, minRadius: 0.4, radius: 3.6, seed: 95, wireframe }));
+
+        // Foreground flower clusters (Daisies, Wild Roses, Tulips)
+        const flowerSpecs = [
+          { p: 'daisy', x: 0.55, z: 2.15, h: 0.48, s: 11 },
+          { p: 'daisy', x: 0.82, z: 2.35, h: 0.42, s: 12 },
+          { p: 'daisy', x: 0.35, z: 2.48, h: 0.45, s: 13 },
+          { p: 'rose',  x: 1.45, z: 1.85, h: 0.54, s: 21 },
+          { p: 'rose',  x: 1.68, z: 2.05, h: 0.47, s: 22 },
+          { p: 'tulip', x: -0.45, z: 2.25, h: 0.46, s: 31 },
+          { p: 'tulip', x: -0.68, z: 2.08, h: 0.42, s: 32 },
+          { p: 'tulip', x: -0.25, z: 2.42, h: 0.49, s: 33 },
+        ];
+        for (const fs of flowerSpecs) {
+          const fl = buildFlowerMeshGroup(fs.p, fs.s, windUniforms, { heightMeters: fs.h, useNormalMap: useNormal, wireframe });
+          fl.position.set(fs.x, 0, fs.z);
+          fl.rotation.y = fs.s * 0.9;
+          activeGroup.add(fl);
+        }
+      }
+
+      scene.add(activeGroup);
+
+      let tris = 0;
+      let meshes = 0;
+      activeGroup.traverse((o) => {
+        if (o.isMesh || o.isInstancedMesh) {
+          meshes++;
+          const cnt = o.isInstancedMesh ? o.count : 1;
+          const idxCount = o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count;
+          tris += Math.round((idxCount / 3) * cnt);
+        }
+      });
+      document.getElementById('stats').textContent =
+        `Mode: ${mode} (${key}) | Meshes: ${meshes} | Triangles: ${tris.toLocaleString()}`;
+    }
+
+    const camParam = params.get('cam') || 'hero';
+    rebuildScene();
+    setCameraPreset(camParam);
+
+    [viewSel, spSel, chkLeaves, chkNormal, chkWind, chkWire].forEach((el) => {
+      el.addEventListener('change', () => {
+        rebuildScene();
+        if (el === viewSel || el === spSel) setCameraPreset('hero');
+      });
+    });
+
+    document.querySelectorAll('button[data-cam]').forEach((btn) => {
+      btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Expose deterministic frame render & state switch hooks for screenshot verification
+    window.__botanicalReady = true;
+    window.__renderOnce = (t = 0.4) => {
+      windUniforms.uTime.value = chkWind.checked ? t : 0;
+      renderer.render(scene, camera);
+    };
+    window.__setInspectionState = (opts = {}) => {
+      if (opts.hud !== undefined) document.body.classList.toggle('clean', !opts.hud);
+      if (opts.view !== undefined) viewSel.value = opts.view;
+      if (opts.species !== undefined) spSel.value = opts.species;
+      if (opts.leaves !== undefined) chkLeaves.checked = Boolean(opts.leaves);
+      if (opts.normal !== undefined) chkNormal.checked = Boolean(opts.normal);
+      if (opts.wind !== undefined) chkWind.checked = Boolean(opts.wind);
+      if (opts.wire !== undefined) chkWire.checked = Boolean(opts.wire);
+      rebuildScene();
+      setCameraPreset(opts.cam || 'hero');
+      window.__renderOnce(0.45);
+    };
+
+    const startTime = performance.now();
+    if (params.get('pause') === '1') {
+      window.__renderOnce(0.45);
+    } else {
+      renderer.setAnimationLoop(() => {
+        windUniforms.uTime.value = chkWind.checked ? (performance.now() - startTime) * 0.001 : 0;
+        renderer.render(scene, camera);
+      });
+    }
+  </script>
+</body>
+</html>

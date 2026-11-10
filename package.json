@@ -1,0 +1,16 @@
+{
+  "name": "threejsworld",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Universal Procedural Photorealistic 3D Modeling & Botanical World Synthesis Engine",
+  "scripts": {
+    "serve": "node tools/serve_app.mjs",
+    "test:py": "python3 -m unittest discover -s tests -v",
+    "test:core": "node --experimental-strip-types tests/test_runtime.mjs",
+    "test": "npm run test:py && npm run test:core"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}

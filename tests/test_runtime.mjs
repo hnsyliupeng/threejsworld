@@ -20,7 +20,28 @@ import {
   solveAlphaCoverageScale,
   buildClusterDagHierarchy,
   selectLodCut,
+  generateRealisticTree,
+  buildFlowerClump,
+  buildGrassClump,
+  synthesizeBarkSurface,
+  synthesizeSoilSurface,
+  synthesizeLeafSprigAtlas,
 } from '../runtime/core/index.ts';
+
+function assertOutwardWinding(name, mesh) {
+  const { positions: p, indices: idx, normals: n } = mesh;
+  assert.ok(idx.length >= 3 && idx.length % 3 === 0, `${name} must have valid triangle indices`);
+  let neg = 0;
+  for (let k = 0; k < idx.length; k += 3) {
+    const i0 = idx[k], i1 = idx[k + 1], i2 = idx[k + 2];
+    const ax = p[i1 * 3] - p[i0 * 3], ay = p[i1 * 3 + 1] - p[i0 * 3 + 1], az = p[i1 * 3 + 2] - p[i0 * 3 + 2];
+    const bx = p[i2 * 3] - p[i0 * 3], by = p[i2 * 3 + 1] - p[i0 * 3 + 1], bz = p[i2 * 3 + 2] - p[i0 * 3 + 2];
+    const cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+    const dot = cx * n[i0 * 3] + cy * n[i0 * 3 + 1] + cz * n[i0 * 3 + 2];
+    if (dot < -1e-9) neg++;
+  }
+  assert.equal(neg, 0, `${name} had ${neg} inside-out triangles (faceNormal · vertNormal < 0)`);
+}
 
 // 1. Deterministic PRNG & Periodic Noise
 {
@@ -80,6 +101,7 @@ import {
     const len = Math.hypot(sweep.normals[i], sweep.normals[i + 1], sweep.normals[i + 2]);
     assert.ok(Math.abs(len - 1) < 1e-4, 'Sweep normals must stay unit-length');
   }
+  assertOutwardWinding('buildTaperedSweep', sweep);
 
   const outline = [];
   for (let i = 0; i < 16; i++) {
@@ -158,6 +180,78 @@ import {
   const cutNear = selectLodCut(dag, [0, 0, 1], 1000, 1.0);
   const cutFar = selectLodCut(dag, [0, 0, 5000], 1000, 1.0);
   assert.ok(cutNear.length >= cutFar.length, 'Near camera should select finer/more cluster nodes than far camera');
+}
+
+// 7. Realistic Procedural Trees, Flowers & Grass (`botanicalFlora.ts`)
+{
+  for (const preset of ['oak', 'pine', 'birch']) {
+    const treeA = generateRealisticTree({ preset, seed: 101 });
+    const treeB = generateRealisticTree({ preset, seed: 101 });
+    assert.deepEqual(treeA.bark.positions, treeB.bark.positions, `Tree ${preset} must be deterministic`);
+    assertOutwardWinding(`tree.${preset}.bark`, treeA.bark);
+    assert.ok(treeA.leafCount > 100, `Tree ${preset} must emit foliage cards`);
+    for (let i = 0; i < treeA.leaves.normals.length; i += 3) {
+      assert.ok(treeA.leaves.normals[i + 1] > 0.35, `Tree ${preset} leaves must preserve upward normal bias`);
+    }
+    let minY = Infinity;
+    for (let i = 1; i < treeA.bark.positions.length; i += 3) minY = Math.min(minY, treeA.bark.positions[i]);
+    assert.ok(minY < -0.1, `Tree ${preset} root collar must embed below y=0 (got ${minY})`);
+  }
+
+  for (const fPreset of ['daisy', 'rose', 'tulip']) {
+    const fl = buildFlowerClump(fPreset, 21, 0.48);
+    assertOutwardWinding(`flower.${fPreset}.stemsAndLeaves`, fl.stemsAndLeaves);
+    assertOutwardWinding(`flower.${fPreset}.centerDisc`, fl.centerDisc);
+    // Regression test: pinched petal/sepal claws & tips must NEVER produce zero-length normals
+    for (const part of [fl.stemsAndLeaves, fl.petals, fl.centerDisc]) {
+      for (let i = 0; i < part.normals.length; i += 3) {
+        const l = Math.hypot(part.normals[i], part.normals[i + 1], part.normals[i + 2]);
+        assert.ok(l > 0.9 && l < 1.1 && Number.isFinite(l), `Degenerate normal in ${fPreset} (len=${l})`);
+      }
+      for (let i = 0; i < part.positions.length; i++) {
+        assert.ok(Number.isFinite(part.positions[i]), `Non-finite position in ${fPreset}`);
+      }
+    }
+  }
+
+  const fescue = buildGrassClump('fescue', 707, 24);
+  const foxtail = buildGrassClump('foxtail', 707, 24);
+  const sedge = buildGrassClump('sedge', 707, 24);
+  for (const [name, g] of [['fescue', fescue], ['foxtail', foxtail], ['sedge', sedge]]) {
+    assertOutwardWinding(`grass.${name}`, g);
+    assert.ok(g.positions.length > 0 && g.indices.length > 0);
+    for (let i = 0; i < g.normals.length; i += 3) {
+      const l = Math.hypot(g.normals[i], g.normals[i + 1], g.normals[i + 2]);
+      assert.ok(l > 0.9 && l < 1.1, `Grass ${name} normal must be unit-length`);
+    }
+  }
+  assert.ok(foxtail.indices.length > fescue.indices.length, 'Foxtail preset must add connected culm/panicle triangles');
+}
+
+// 8. Flora Surface::shaped Bark, Soil & Leaf Sprig Atlases (`floraTextures.ts`)
+{
+  for (const preset of ['oak', 'pine', 'birch']) {
+    const bark = synthesizeBarkSurface(preset, 64, 42);
+    assert.equal(bark.albedoSRGB.length, 64 * 64 * 4);
+    assert.equal(bark.normalLinear.length, 64 * 64 * 4);
+    assert.equal(bark.ormLinear.length, 64 * 64 * 4);
+
+    const atlas = synthesizeLeafSprigAtlas(preset, 64, 0.45);
+    assert.ok(atlas.albedoMips.length >= 6);
+    const cov0 = atlas.albedoMips[0].coverage;
+    assert.ok(cov0 > 0.15 && cov0 < 0.95, `Atlas ${preset} base coverage out of bounds: ${cov0}`);
+    for (const m of atlas.albedoMips) {
+      if (m.width >= 4) {
+        assert.ok(Math.abs(m.coverage - cov0) < 0.05, `Atlas ${preset} mip ${m.width} coverage drifted (${m.coverage} vs ${cov0})`);
+      }
+    }
+    // Verify transparent background pixels carry chlorophyll bleed (G > R, G > B, no black/white halo)
+    const p0 = 0;
+    assert.equal(atlas.albedoMips[0].data[p0 + 3], 0);
+    assert.ok(atlas.albedoMips[0].data[p0 + 1] > atlas.albedoMips[0].data[p0], 'Transparent bleed must be chlorophyll green');
+  }
+  const soil = synthesizeSoilSurface(64, 77);
+  assert.equal(soil.albedoSRGB.length, 64 * 64 * 4);
 }
 
 console.log('ALL runtime/core TypeScript tests passed!');
